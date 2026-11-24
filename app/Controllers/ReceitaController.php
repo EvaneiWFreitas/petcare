@@ -60,10 +60,7 @@ final class ReceitaController extends Controller
             'createRoute' => 'receitas.create',
             'search' => $search,
             'paginator' => $paginator,
-            'actions' => [
-                ['label' => 'Visualizar', 'route' => 'receitas.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
-                ['label' => 'Imprimir', 'route' => 'receitas.print', 'icon' => 'print', 'class' => 'btn-outline-secondary'],
-            ],
+            'actions' => $this->indexActions(),
         ]);
     }
 
@@ -211,6 +208,32 @@ final class ReceitaController extends Controller
             ['id' => $id]
         );
         return ['receita' => $receita, 'itens' => $itens];
+    }
+
+    public function destroy(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        if ($id <= 0 || (int) Database::scalar('SELECT COUNT(*) FROM receitas WHERE id = :id', ['id' => $id]) === 0) {
+            abort(404, 'Receita não encontrada.');
+        }
+
+        Database::transaction(static fn(): int => Database::delete('receitas', 'id = :id', ['id' => $id]));
+        log_action('excluiu_receita', 'receitas', $id, 'Receita excluída.');
+        clear_old();
+        flash('success', 'Receita excluída com sucesso.');
+        $this->redirect('receitas.index');
+    }
+
+    private function indexActions(): array
+    {
+        $actions = [
+            ['label' => 'Visualizar', 'route' => 'receitas.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
+            ['label' => 'Imprimir', 'route' => 'receitas.print', 'icon' => 'print', 'class' => 'btn-outline-secondary'],
+        ];
+        if (can('receitas', 'delete')) {
+            $actions[] = ['label' => 'Excluir', 'route' => 'receitas.destroy', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir esta receita? Esta ação não pode ser desfeita.'];
+        }
+        return $actions;
     }
 
     private function options(): array

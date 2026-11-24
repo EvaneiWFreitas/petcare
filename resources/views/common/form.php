@@ -54,7 +54,9 @@ $enctype = $enctype ?? null;
                             <?= e($label) ?> <?= $required ? '<span class="text-danger">*</span>' : '' ?>
                         </label>
 
-                        <?php if ($type === 'select'): ?>
+                        <?php if ($type === 'hidden'): ?>
+                            <input type="hidden" name="<?= e($name) ?>" value="<?= e($value) ?>">
+                        <?php elseif ($type === 'select'): ?>
                             <select name="<?= e($name) ?>" id="field_<?= e($name) ?>" class="form-select <?= $error ? 'is-invalid' : '' ?>">
                                 <option value=""><?= e($field['empty'] ?? 'Selecione...') ?></option>
                                 <?php foreach ($options as $optionValue => $optionLabel): ?>

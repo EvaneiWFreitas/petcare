@@ -31,7 +31,9 @@ final class Router
         }
 
         if (Request::isPost() && !csrf_validate()) {
-            abort(419, 'Sessão expirada. Recarregue a página e tente novamente.');
+            Session::renewCsrf();
+            flash('error', 'Sessão expirada. Tente novamente.');
+            redirect_back();
         }
 
         $target = explode('@', (string) $route['controller'], 2);

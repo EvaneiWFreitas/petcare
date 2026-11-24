@@ -65,9 +65,7 @@ final class InternacaoController extends Controller
             'createRoute' => 'internacoes.create',
             'search' => $search,
             'paginator' => $paginator,
-            'actions' => [
-                ['label' => 'Visualizar', 'route' => 'internacoes.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
-            ],
+            'actions' => $this->indexActions(),
         ]);
     }
 
@@ -284,6 +282,31 @@ final class InternacaoController extends Controller
         log_action('deu_alta', 'internacoes', $id, 'Alta registrada na internação #' . $id . '.');
         flash('success', 'Alta registrada com sucesso.');
         $this->redirectTo('internacoes.show', ['id' => $id]);
+    }
+
+    public function destroy(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        if ($id <= 0 || (int) Database::scalar('SELECT COUNT(*) FROM internacoes WHERE id = :id', ['id' => $id]) === 0) {
+            abort(404, 'Internação não encontrada.');
+        }
+
+        Database::transaction(static fn(): int => Database::delete('internacoes', 'id = :id', ['id' => $id]));
+        log_action('excluiu_internacao', 'internacoes', $id, 'Internação excluída.');
+        clear_old();
+        flash('success', 'Internação excluída com sucesso.');
+        $this->redirect('internacoes.index');
+    }
+
+    private function indexActions(): array
+    {
+        $actions = [
+            ['label' => 'Visualizar', 'route' => 'internacoes.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
+        ];
+        if (can('internacoes', 'delete')) {
+            $actions[] = ['label' => 'Excluir', 'route' => 'internacoes.destroy', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir esta internação? Esta ação não pode ser desfeita.'];
+        }
+        return $actions;
     }
 
     private function fields(): array

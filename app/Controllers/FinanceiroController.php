@@ -40,6 +40,7 @@ final class FinanceiroController extends Controller
         'pago' => 'Pago',
         'parcial' => 'Parcial',
         'vencido' => 'Vencido',
+        'cancelado' => 'Cancelado',
     ];
 
     private const FORMAS_PAGAMENTO = [
@@ -202,6 +203,85 @@ final class FinanceiroController extends Controller
             'status' => 'aberto',
         ];
         $this->renderReceberForm('Nova conta a receber', $this->withOld($defaults), []);
+    }
+
+    public function editReceber(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::get('id', 0);
+        $conta = $id > 0
+            ? Database::fetch('SELECT * FROM contas_receber WHERE id = :id LIMIT 1', ['id' => $id])
+            : null;
+        if ($conta === null) {
+            abort(404, 'Conta a receber não encontrada.');
+        }
+
+        $this->renderReceberForm('Editar conta a receber', $this->withOld($conta), [], 'financeiro.update-receber', 'Salvar alterações');
+    }
+
+    public function updateReceber(): void
+    {
+        $id = (int) Request::post('id', 0);
+        $conta = $id > 0
+            ? Database::fetch('SELECT * FROM contas_receber WHERE id = :id LIMIT 1', ['id' => $id])
+            : null;
+        if ($conta === null) {
+            abort(404, 'Conta a receber não encontrada.');
+        }
+
+        $data = $this->collectReceber();
+        $errors = $this->validateReceber($data + ['id' => $id]);
+        if (array_key_exists('status', $data) && !array_key_exists($data['status'], self::STATUS)) {
+            $errors['status'] = 'Status não é permitido.';
+        }
+
+        if ($errors !== []) {
+            set_old($data);
+            $this->renderReceberForm('Editar conta a receber', $this->withOld($data + ['id' => $id]), $errors, 'financeiro.update-receber', 'Salvar alterações');
+            return;
+        }
+
+        $valor = (float) $data['valor'];
+        $desconto = (float) $data['desconto'];
+        $valorPago = (float) ($conta['valor_pago'] ?? 0);
+        $saldo = $valor - $valorPago - $desconto;
+        $status = (string) $data['status'];
+        if ($valorPago > 0 && $saldo < -0.001) {
+            $errors['valor'] = 'O valor não pode ser menor que o total já pago mais o desconto.';
+            $this->renderReceberForm('Editar conta a receber', $this->withOld($data + ['id' => $id]), $errors, 'financeiro.update-receber', 'Salvar alterações');
+            return;
+        }
+        if ($valorPago <= 0 && $status === 'pago') {
+            $valorPago = max(0, $valor - $desconto);
+        }
+        if ($valorPago > 0 && $saldo <= 0.001) {
+            $status = 'pago';
+        } elseif ($valorPago > 0 && $saldo > 0.001) {
+            $status = 'parcial';
+        }
+        if ($valorPago > 0 && $status === 'cancelado') {
+            $errors['status'] = 'Não é possível cancelar uma conta com pagamentos registrados.';
+            $this->renderReceberForm('Editar conta a receber', $this->withOld($data + ['id' => $id]), $errors, 'financeiro.update-receber', 'Salvar alterações');
+            return;
+        }
+
+        $payload = [
+            'codigo' => $data['codigo'],
+            'cliente_id' => $data['cliente_id'] === '' ? null : (int) $data['cliente_id'],
+            'origem' => $data['origem'],
+            'referencia_id' => $data['referencia_id'] === '' ? null : (int) $data['referencia_id'],
+            'descricao' => $data['descricao'],
+            'valor' => number_format($valor, 2, '.', ''),
+            'valor_pago' => number_format($valorPago, 2, '.', ''),
+            'desconto' => number_format($desconto, 2, '.', ''),
+            'vencimento' => $data['vencimento'],
+            'status' => $status,
+        ];
+
+        Database::transaction(static fn(): int => Database::update('contas_receber', $payload, 'id = :id', ['id' => $id]));
+        log_action('editou_conta_receber', 'financeiro', $id, 'Conta ' . $payload['codigo'] . ' atualizada.');
+        clear_old();
+        flash('success', 'Conta a receber atualizada com sucesso.');
+        $this->redirect('financeiro.receber');
     }
 
     public function storeReceber(): void
@@ -459,6 +539,55 @@ final class FinanceiroController extends Controller
         ]);
     }
 
+    public function destroyReceber(): void
+    {
+        $this->deleteAccount('receber');
+    }
+
+    public function destroyPagar(): void
+    {
+        $this->deleteAccount('pagar');
+    }
+
+    private function deleteAccount(string $tipo): void
+    {
+        $id = (int) Request::post('id', 0);
+        $config = $tipo === 'receber'
+            ? ['table' => 'contas_receber', 'route' => 'financeiro.receber', 'label' => 'Conta a receber']
+            : ['table' => 'contas_pagar', 'route' => 'financeiro.pagar', 'label' => 'Conta a pagar'];
+        $conta = $id > 0
+            ? Database::fetch('SELECT codigo, status, valor_pago FROM ' . Database::identifier($config['table']) . ' WHERE id = :id LIMIT 1', ['id' => $id])
+            : null;
+        if ($conta === null) {
+            abort(404, 'Conta não encontrada.');
+        }
+
+        $colunaPagamento = $tipo === 'receber' ? 'conta_receber_id' : 'conta_pagar_id';
+        $pagamentos = (int) Database::scalar(
+            'SELECT COUNT(*) FROM pagamentos WHERE ' . $colunaPagamento . ' = :id LIMIT 1',
+            ['id' => $id]
+        );
+        if ($tipo === 'pagar' && ($pagamentos > 0 || (float) ($conta['valor_pago'] ?? 0) > 0)) {
+            flash('error', 'Não é possível excluir: a conta possui pagamentos registrados.');
+            $this->redirect($config['route']);
+        }
+
+        Database::transaction(static function () use ($config, $colunaPagamento, $id, $pagamentos): void {
+            if ($pagamentos > 0) {
+                Database::delete('pagamentos', $colunaPagamento . ' = :id', ['id' => $id]);
+            }
+            Database::delete($config['table'], 'id = :id', ['id' => $id]);
+        });
+        $detalhes = ucfirst($tipo) . ' ' . ($conta['codigo'] ?? '') . ' excluída.';
+        if ($pagamentos > 0) {
+            $detalhes .= ' ' . $pagamentos . ' pagamento(s) vinculado(s) removido(s).';
+        }
+        log_action('excluiu_conta', 'financeiro', $id, $detalhes);
+        clear_old();
+        flash('success', $config['label'] . ' excluída com sucesso.');
+        $this->redirect($config['route']);
+    }
+
     private function accounts(string $tipo): array
     {
         $page = max(1, (int) Request::get('page', 1));
@@ -508,30 +637,34 @@ final class FinanceiroController extends Controller
         return [$rows, $paginator, $search, $status];
     }
 
-    private function renderReceberForm(string $title, array $values, array $errors): void
+    private function renderReceberForm(string $title, array $values, array $errors, string $action = 'financeiro.store-receber', string $submitLabel = 'Cadastrar conta'): void
     {
         $clientes = [];
         foreach (Database::fetchAll('SELECT id, nome FROM clientes ORDER BY nome ASC') as $row) {
             $clientes[(int) $row['id']] = $row['nome'];
         }
+        $fields = [
+            'codigo' => ['label' => 'Código', 'type' => 'text', 'rules' => 'required|max:50', 'col' => 'col-md-4', 'help' => 'Gerado automaticamente.'],
+            'cliente_id' => ['label' => 'Cliente', 'type' => 'select', 'rules' => 'nullable|integer', 'options' => $clientes, 'col' => 'col-md-8', 'empty' => 'Não informar'],
+            'origem' => ['label' => 'Origem', 'type' => 'select', 'rules' => 'required', 'options' => self::ORIGENS, 'col' => 'col-md-6'],
+            'referencia_id' => ['label' => 'Referência (ID)', 'type' => 'number', 'rules' => 'nullable|integer', 'col' => 'col-md-6'],
+            'descricao' => ['label' => 'Descrição', 'type' => 'text', 'rules' => 'required|max:255', 'col' => 'col-md-12'],
+            'valor' => ['label' => 'Valor (R$)', 'type' => 'number', 'rules' => 'required|numeric', 'col' => 'col-md-4'],
+            'desconto' => ['label' => 'Desconto (R$)', 'type' => 'number', 'rules' => 'nullable|numeric', 'col' => 'col-md-4'],
+            'vencimento' => ['label' => 'Vencimento', 'type' => 'date', 'rules' => 'required|date', 'col' => 'col-md-4'],
+            'status' => ['label' => 'Status', 'type' => 'select', 'rules' => 'required', 'options' => self::STATUS, 'col' => 'col-md-4'],
+        ];
+        if ($action === 'financeiro.update-receber') {
+            $fields = ['id' => ['label' => 'ID', 'type' => 'hidden', 'rules' => '', 'col' => 'd-none']] + $fields;
+        }
         $this->render('financeiro/form-receber', [
             'title' => $title,
             'values' => $values,
             'errors' => $errors,
-            'action' => 'financeiro.store-receber',
-            'cancelRoute' => 'financeiro.index',
-            'submitLabel' => 'Cadastrar conta',
-            'fields' => [
-                'codigo' => ['label' => 'Código', 'type' => 'text', 'rules' => 'required|max:50', 'col' => 'col-md-4', 'help' => 'Gerado automaticamente.'],
-                'cliente_id' => ['label' => 'Cliente', 'type' => 'select', 'rules' => 'nullable|integer', 'options' => $clientes, 'col' => 'col-md-8', 'empty' => 'Não informar'],
-                'origem' => ['label' => 'Origem', 'type' => 'select', 'rules' => 'required', 'options' => self::ORIGENS, 'col' => 'col-md-6'],
-                'referencia_id' => ['label' => 'Referência (ID)', 'type' => 'number', 'rules' => 'nullable|integer', 'col' => 'col-md-6'],
-                'descricao' => ['label' => 'Descrição', 'type' => 'text', 'rules' => 'required|max:255', 'col' => 'col-md-12'],
-                'valor' => ['label' => 'Valor (R$)', 'type' => 'number', 'rules' => 'required|numeric', 'col' => 'col-md-4'],
-                'desconto' => ['label' => 'Desconto (R$)', 'type' => 'number', 'rules' => 'nullable|numeric', 'col' => 'col-md-4'],
-                'vencimento' => ['label' => 'Vencimento', 'type' => 'date', 'rules' => 'required|date', 'col' => 'col-md-4'],
-                'status' => ['label' => 'Status', 'type' => 'select', 'rules' => 'required', 'options' => self::STATUS, 'col' => 'col-md-4'],
-            ],
+            'action' => $action,
+            'cancelRoute' => 'financeiro.receber',
+            'submitLabel' => $submitLabel,
+            'fields' => $fields,
         ]);
     }
 
@@ -675,16 +808,26 @@ final class FinanceiroController extends Controller
 
     private function payAction(array $row, string $tipo): string
     {
-        if (in_array($row['status'] ?? '', ['pago', 'cancelado'], true)) {
-            return '<span class="text-muted">—</span>';
+        $id = (int) ($row['id'] ?? 0);
+        $status = (string) ($row['status'] ?? '');
+        $valorPago = (float) ($row['valor_pago'] ?? 0);
+        $saldo = (float) ($row['saldo'] ?? 0);
+        $html = '<div class="d-flex justify-content-end gap-1 flex-wrap">';
+
+        if ($tipo === 'receber' && can('financeiro', 'edit')) {
+            $html .= render_action('financeiro.edit-receber', ['id' => $id], ['label' => 'Editar', 'icon' => 'pen', 'class' => 'btn-outline-secondary', 'showLabel' => true]);
         }
-        $href = url('financeiro.pay', ['tipo' => $tipo, 'id' => (int) ($row['id'] ?? 0)]);
-        $html = '<div class="d-flex justify-content-end">';
-        $html .= '<form method="post" action="' . e($href) . '">' . csrf_field();
-        $html .= '<input type="hidden" name="tipo" value="' . e($tipo) . '">';
-        $html .= '<input type="hidden" name="id" value="' . e((int) ($row['id'] ?? 0)) . '">';
-        $html .= '<button type="submit" class="btn btn-sm btn-outline-success" title="' . e($tipo === 'receber' ? 'Receber' : 'Pagar') . '"><i class="fa-solid fa-hand-holding-dollar"></i></button>';
-        return $html . '</form></div>';
+        if (!in_array($status, ['pago', 'cancelado'], true) && $saldo > 0.001) {
+            $html .= render_action('financeiro.pay', ['tipo' => $tipo, 'id' => $id], ['label' => $tipo === 'receber' ? 'Receber' : 'Pagar', 'icon' => 'hand-holding-dollar', 'class' => 'btn-outline-success']);
+        }
+        if (can('financeiro', 'delete') && ($tipo !== 'pagar' || $valorPago <= 0)) {
+            $confirm = $valorPago > 0
+                ? 'Excluir esta conta paga? Os pagamentos vinculados também serão excluídos e esta ação não pode ser desfeita.'
+                : 'Excluir esta conta? Esta ação não pode ser desfeita.';
+            $html .= render_action('financeiro.destroy-' . $tipo, ['id' => $id], ['label' => 'Excluir', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'showLabel' => true, 'confirm' => $confirm]);
+        }
+
+        return $html . '</div>';
     }
 
     private function normalizeDateTime(string $value): string

@@ -65,6 +65,14 @@ final class ProntuarioController extends Controller
         }
         $extraFilters .= '</select></div>';
 
+        $actions = [
+            ['label' => 'Visualizar', 'route' => 'prontuarios.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
+            ['label' => 'Editar', 'route' => 'prontuarios.edit', 'icon' => 'pen', 'class' => 'btn-outline-secondary'],
+        ];
+        if (can('prontuarios', 'delete')) {
+            $actions[] = ['label' => 'Excluir', 'route' => 'prontuarios.destroy', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir este prontuário? Esta ação não pode ser desfeita.'];
+        }
+
         $this->render('prontuarios/index', [
             'title' => 'Prontuários',
             'rows' => $rows,
@@ -72,10 +80,7 @@ final class ProntuarioController extends Controller
             'animal_id' => $animalId,
             'extraFilters' => $extraFilters,
             'paginator' => $paginator,
-            'actions' => [
-                ['label' => 'Visualizar', 'route' => 'prontuarios.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
-                ['label' => 'Editar', 'route' => 'prontuarios.edit', 'icon' => 'pen', 'class' => 'btn-outline-secondary'],
-            ],
+            'actions' => $actions,
         ]);
     }
 
@@ -332,6 +337,21 @@ final class ProntuarioController extends Controller
         clear_old();
         flash('success', 'Prontuário atualizado com sucesso.');
         $this->redirectTo('prontuarios.show', ['id' => $id]);
+    }
+
+    public function destroy(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        if ($id <= 0 || (int) Database::scalar('SELECT COUNT(*) FROM prontuarios WHERE id = :id', ['id' => $id]) === 0) {
+            abort(404, 'Prontuário não encontrado.');
+        }
+
+        Database::transaction(static fn(): int => Database::delete('prontuarios', 'id = :id', ['id' => $id]));
+        delete_anexos('prontuario', $id);
+        log_action('excluiu_prontuario', 'prontuarios', $id, 'Prontuário excluído.');
+        clear_old();
+        flash('success', 'Prontuário excluído com sucesso.');
+        $this->redirect('prontuarios.index');
     }
 
     private function renderForm(string $title, array $values, array $errors, bool $editing, ?string $warning, string $animalInfo): void

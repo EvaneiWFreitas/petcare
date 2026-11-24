@@ -98,21 +98,10 @@ $emptyMessage = $emptyMessage ?? 'Nenhum registro encontrado.';
                                     <div class="d-flex justify-content-end gap-1 flex-wrap">
                                         <?php foreach ($actions as $action): ?>
                                             <?php
-                                            $href = str_replace(':id', (string) ($row['id'] ?? ''), $action['route']);
-                                            $btnClass = 'btn btn-sm ' . ($action['class'] ?? 'btn-outline-secondary');
-                                            $icon = $action['icon'] ?? 'circle-info';
-                                            $labelAction = $action['label'] ?? 'Ação';
-                                            if (($action['method'] ?? 'get') === 'post'):
+                                            $actionRoute = (string) ($action['route'] ?? '');
+                                            $actionParams = str_contains($actionRoute, ':id') ? [] : ['id' => (int) ($row['id'] ?? 0)];
+                                            echo render_action(str_replace(':id', (string) ($row['id'] ?? ''), $actionRoute), $actionParams, $action);
                                             ?>
-                                                <form method="post" action="<?= e(url($href)) ?>" onsubmit="return confirm('<?= e($action['confirm'] ?? 'Confirma esta ação?') ?>')">
-                                                    <?= csrf_field() ?>
-                                                    <button type="submit" class="<?= e($btnClass) ?>" title="<?= e($labelAction) ?>"><i class="fa-solid fa-<?= e($icon) ?>"></i></button>
-                                                </form>
-                                            <?php else: ?>
-                                                <a href="<?= e(url($href)) ?>" class="<?= e($btnClass) ?>" title="<?= e($labelAction) ?>" <?= !empty($action['confirm']) ? 'onclick="return confirm(\'' . e($action['confirm']) . '\')"' : '' ?>>
-                                                    <i class="fa-solid fa-<?= e($icon) ?>"></i>
-                                                </a>
-                                            <?php endif; ?>
                                         <?php endforeach; ?>
                                     </div>
                                 </td>

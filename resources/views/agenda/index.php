@@ -7,6 +7,8 @@ $date = $date ?? date('Y-m-d');
 $start = $start ?? $date;
 $end = $end ?? $date;
 $periodLabel = $periodLabel ?? '';
+$status = $status ?? '';
+$statusLabel = $statusLabel ?? '';
 $stats = $stats ?? ['total' => 0, 'confirmados' => 0, 'aguardando' => 0];
 $priorities = $priorities ?? [];
 
@@ -72,6 +74,11 @@ $renderEvent = static function (array $event) use ($statusClasses, $statusLabels
     if (can('atendimentos', 'create')) {
         $html .= '<a href="' . e(url('atendimentos.create', ['agendamento_id' => $event['id']])) . '" class="btn btn-outline-success" title="Registrar atendimento"><i class="fa-solid fa-stethoscope"></i></a>';
     }
+    if (can('agenda', 'delete') && in_array($status, ['finalizado', 'cancelado', 'falta'], true)) {
+        $html .= render_action('agenda.delete', ['id' => $event['id']], ['label' => 'Excluir', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir este agendamento? Esta ação não pode ser desfeita.']);
+    } elseif (can('agenda', 'delete')) {
+        $html .= render_action('agenda.destroy', ['id' => $event['id']], ['label' => 'Cancelar', 'icon' => 'circle-xmark', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Cancelar este agendamento?']);
+    }
     $html .= '</span></div></div></div>';
     return $html;
 };
@@ -91,14 +98,30 @@ $renderEvent = static function (array $event) use ($statusClasses, $statusLabels
     <div class="card-body p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div class="btn-group" role="group" aria-label="Visualização da agenda">
             <?php foreach ($viewLabels as $key => $label): ?>
-                <a href="<?= e(url('agenda.index', ['view' => $key, 'date' => $date])) ?>" class="btn btn-sm <?= $view === $key ? 'btn-petcare' : 'btn-outline-secondary' ?>"><?= e($label) ?></a>
+                <a href="<?= e(url('agenda.index', array_filter(['view' => $key, 'date' => $date, 'status' => $status]))) ?>" class="btn btn-sm <?= $view === $key ? 'btn-petcare' : 'btn-outline-secondary' ?>"><?= e($label) ?></a>
             <?php endforeach; ?>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <a href="<?= e(url('agenda.index', ['view' => $view, 'date' => $previousDate])) ?>" class="btn btn-sm btn-outline-secondary" aria-label="Período anterior"><i class="fa-solid fa-chevron-left"></i></a>
-            <a href="<?= e(url('agenda.index', ['view' => 'day', 'date' => date('Y-m-d')])) ?>" class="btn btn-sm btn-outline-petcare">Hoje</a>
-            <a href="<?= e(url('agenda.index', ['view' => $view, 'date' => $nextDate])) ?>" class="btn btn-sm btn-outline-secondary" aria-label="Próximo período"><i class="fa-solid fa-chevron-right"></i></a>
+            <a href="<?= e(url('agenda.index', array_filter(['view' => $view, 'date' => $previousDate, 'status' => $status]))) ?>" class="btn btn-sm btn-outline-secondary" aria-label="Período anterior"><i class="fa-solid fa-chevron-left"></i></a>
+            <a href="<?= e(url('agenda.index', array_filter(['view' => 'day', 'date' => date('Y-m-d'), 'status' => $status]))) ?>" class="btn btn-sm btn-outline-petcare">Hoje</a>
+            <a href="<?= e(url('agenda.index', array_filter(['view' => $view, 'date' => $nextDate, 'status' => $status]))) ?>" class="btn btn-sm btn-outline-secondary" aria-label="Próximo período"><i class="fa-solid fa-chevron-right"></i></a>
         </div>
+        <form method="get" action="<?= e(url('agenda.index')) ?>" class="d-flex align-items-center gap-2">
+            <input type="hidden" name="r" value="agenda.index">
+            <input type="hidden" name="view" value="<?= e($view) ?>">
+            <input type="hidden" name="date" value="<?= e($date) ?>">
+            <label for="status" class="small text-muted mb-0">Status</label>
+            <select name="status" id="status" class="form-select form-select-sm w-auto">
+                <option value="">Todos</option>
+                <?php foreach ($statusLabels as $key => $label): ?>
+                    <option value="<?= e($key) ?>" <?= $status === $key ? 'selected' : '' ?>><?= e($label) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <button type="submit" class="btn btn-sm btn-outline-petcare"><i class="fa-solid fa-filter me-1"></i>Filtrar</button>
+            <?php if ($status !== ''): ?>
+                <a href="<?= e(url('agenda.index', ['view' => $view, 'date' => $date])) ?>" class="btn btn-sm btn-link text-decoration-none">Limpar</a>
+            <?php endif; ?>
+        </form>
     </div>
 </div>
 

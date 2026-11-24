@@ -7,11 +7,11 @@ $upcoming = $upcoming ?? [];
 $shortcuts = $shortcuts ?? [];
 
 $statCards = [
-    ['label' => 'Clientes', 'value' => (int) ($stats['clientes'] ?? 0), 'icon' => 'users', 'color' => 'primary', 'hint' => 'cadastrados no sistema'],
+    ['label' => 'Clientes', 'value' => (int) ($stats['clientes'] ?? 0), 'icon' => 'users', 'color' => 'primary', 'hint' => 'cadastrados no sistema', 'action' => ['route' => 'clientes.index', 'params' => [], 'module' => 'clientes', 'permission' => 'delete']],
     ['label' => 'Animais', 'value' => (int) ($stats['animais'] ?? 0), 'icon' => 'paw', 'color' => 'success', 'hint' => 'pacientes acompanhados'],
     ['label' => 'Agendados', 'value' => (int) ($stats['agendados'] ?? 0), 'icon' => 'calendar-check', 'color' => 'info', 'hint' => 'agendamentos ativos'],
-    ['label' => 'Realizados', 'value' => (int) ($stats['realizados'] ?? 0), 'icon' => 'circle-check', 'color' => 'success', 'hint' => 'atendimentos concluídos'],
-    ['label' => 'Cancelados', 'value' => (int) ($stats['cancelados'] ?? 0), 'icon' => 'circle-xmark', 'color' => 'danger', 'hint' => 'agendamentos cancelados'],
+    ['label' => 'Realizados', 'value' => (int) ($stats['realizados'] ?? 0), 'icon' => 'circle-check', 'color' => 'success', 'hint' => 'atendimentos concluídos', 'action' => ['route' => 'atendimentos.index', 'params' => ['status' => 'finalizado'], 'module' => 'atendimentos', 'permission' => 'delete']],
+    ['label' => 'Cancelados', 'value' => (int) ($stats['cancelados'] ?? 0), 'icon' => 'circle-xmark', 'color' => 'danger', 'hint' => 'agendamentos cancelados', 'action' => ['route' => 'agenda.index', 'params' => ['status' => 'cancelado'], 'module' => 'agenda', 'permission' => 'delete']],
     ['label' => 'Atendimentos hoje', 'value' => (int) ($stats['atendimentos_hoje'] ?? 0), 'icon' => 'stethoscope', 'color' => 'primary', 'hint' => 'no dia de hoje'],
     ['label' => 'Vacinas próximas', 'value' => (int) ($stats['vacinas_proximas'] ?? 0), 'icon' => 'syringe', 'color' => 'info', 'hint' => 'próximas doses'],
     ['label' => 'Vacinas atrasadas', 'value' => (int) ($stats['vacinas_atrasadas'] ?? 0), 'icon' => 'triangle-exclamation', 'color' => 'warning', 'hint' => 'doses pendentes'],
@@ -61,7 +61,12 @@ if ($chartsJson === false) {
                         <span class="stat-card-icon text-<?= e($color) ?>"><i class="fa-solid fa-<?= e($card['icon']) ?>"></i></span>
                     </div>
                     <div class="stat-card-value mt-2"><?= e($card['value']) ?></div>
-                    <div class="stat-card-hint"><?= e($card['hint']) ?></div>
+                    <div class="d-flex align-items-center justify-content-between gap-2">
+                        <div class="stat-card-hint"><?= e($card['hint']) ?></div>
+                        <?php if (!empty($card['action']) && can($card['action']['module'], $card['action']['permission'])): ?>
+                            <a href="<?= e(url($card['action']['route'], $card['action']['params'])) ?>" class="btn btn-sm btn-outline-danger py-0 px-2" title="Excluir registros"><i class="fa-solid fa-trash"></i><span class="visually-hidden">Excluir</span></a>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>

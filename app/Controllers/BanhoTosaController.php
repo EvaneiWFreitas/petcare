@@ -57,7 +57,12 @@ final class BanhoTosaController extends Controller
             'Status' => 'status',
             'Ações' => static function (array $row): string {
                 $id = (int) ($row['id'] ?? 0);
-                return '<div class="d-flex justify-content-end"><a href="' . e(url('banho_tosa.show', ['id' => $id])) . '" class="btn btn-sm btn-outline-primary" title="Visualizar"><i class="fa-solid fa-eye"></i></a></div>';
+                $html = '<div class="d-flex justify-content-end gap-1 flex-wrap">';
+                $html .= render_action('banho_tosa.show', ['id' => $id], ['label' => 'Visualizar', 'icon' => 'eye', 'class' => 'btn-outline-primary']);
+                if (can('banho_tosa', 'delete')) {
+                    $html .= render_action('banho_tosa.destroy', ['id' => $id], ['label' => 'Excluir', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir este serviço? Esta ação não pode ser desfeita.']);
+                }
+                return $html . '</div>';
             },
         ];
 
@@ -195,6 +200,34 @@ final class BanhoTosaController extends Controller
             ],
             'recordId' => $id,
         ]);
+    }
+
+    public function destroy(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        if ($id <= 0 || (int) Database::scalar('SELECT COUNT(*) FROM banho_tosa WHERE id = :id', ['id' => $id]) === 0) {
+            abort(404, 'Serviço não encontrado.');
+        }
+
+        $conta = Database::fetch(
+            "SELECT id, valor_pago FROM contas_receber WHERE origem = 'Banho e tosa' AND referencia_id = :id ORDER BY id DESC LIMIT 1",
+            ['id' => $id]
+        );
+        if ($conta !== null && (float) ($conta['valor_pago'] ?? 0) > 0) {
+            flash('error', 'Não é possível excluir: já existe pagamento registrado para este serviço.');
+            $this->redirect('banho_tosa.index');
+        }
+
+        Database::transaction(static function () use ($id, $conta): void {
+            if ($conta !== null) {
+                Database::delete('contas_receber', 'id = :id', ['id' => (int) $conta['id']]);
+            }
+            Database::delete('banho_tosa', 'id = :id', ['id' => $id]);
+        });
+        log_action('excluiu_banho_tosa', 'banho_tosa', $id, 'Serviço de banho e tosa excluído.');
+        clear_old();
+        flash('success', 'Serviço excluído com sucesso.');
+        $this->redirect('banho_tosa.index');
     }
 
     private function renderForm(string $title, array $values, array $errors): void

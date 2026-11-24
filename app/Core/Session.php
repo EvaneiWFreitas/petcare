@@ -56,7 +56,7 @@ final class Session
     public static function validCsrf(?string $token): bool
     {
         self::start();
-        $ttl = (int) Env::get('CSRF_TTL', '7200');
+        $ttl = (int) Env::get('CSRF_TTL', '43200');
         $issued = (int) ($_SESSION['csrf_time'] ?? 0);
         $expected = (string) ($_SESSION['csrf_token'] ?? '');
         if ($expected === '' || !is_string($token)) {

@@ -314,6 +314,31 @@ final class UsuarioController extends Controller
         exit;
     }
 
+    public function destroy(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        $usuario = $id > 0 ? $this->find($id) : null;
+        if ($usuario === null) {
+            abort(404, 'Usuário não encontrado.');
+        }
+
+        if ($id === (int) Session::get('user_id', 0)) {
+            flash('error', 'Você não pode inativar o próprio usuário.');
+            $this->redirect('usuarios.index');
+        }
+
+        if ((int) ($usuario['ativo'] ?? 0) === 0) {
+            flash('warning', 'Este usuário já está inativo.');
+            $this->redirect('usuarios.index');
+        }
+
+        Database::transaction(static fn(): int => Database::update('usuarios', ['ativo' => 0], 'id = :id', ['id' => $id]));
+        log_action('inativou_usuario', 'usuarios', $id, 'Usuário inativado.');
+        clear_old();
+        flash('success', 'Usuário inativado com sucesso.');
+        $this->redirect('usuarios.index');
+    }
+
     private function find(int $id): ?array
     {
         return Database::fetch('SELECT * FROM usuarios WHERE id = :id LIMIT 1', ['id' => $id]);

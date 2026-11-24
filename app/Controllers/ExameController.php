@@ -91,10 +91,7 @@ final class ExameController extends Controller
             'status' => $status,
             'extraFilters' => $extraFilters,
             'paginator' => $paginator,
-            'actions' => [
-                ['label' => 'Visualizar', 'route' => 'exames.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
-                ['label' => 'Resultado', 'route' => 'exames.show', 'icon' => 'file-circle-check', 'class' => 'btn-outline-success'],
-            ],
+            'actions' => $this->indexActions(),
         ]);
     }
 
@@ -332,6 +329,33 @@ final class ExameController extends Controller
             'resultados' => Database::fetchAll('SELECT * FROM exame_resultados WHERE exame_id = :id ORDER BY id ASC', ['id' => $id]),
             'anexos' => Database::fetchAll("SELECT * FROM anexos WHERE entidade = 'exame' AND entidade_id = :id ORDER BY created_at DESC, id DESC", ['id' => $id]),
         ];
+    }
+
+    public function destroy(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        if ($id <= 0 || (int) Database::scalar('SELECT COUNT(*) FROM exames WHERE id = :id', ['id' => $id]) === 0) {
+            abort(404, 'Exame não encontrado.');
+        }
+
+        Database::transaction(static fn(): int => Database::delete('exames', 'id = :id', ['id' => $id]));
+        delete_anexos('exame', $id);
+        log_action('excluiu_exame', 'exames', $id, 'Exame excluído.');
+        clear_old();
+        flash('success', 'Exame excluído com sucesso.');
+        $this->redirect('exames.index');
+    }
+
+    private function indexActions(): array
+    {
+        $actions = [
+            ['label' => 'Visualizar', 'route' => 'exames.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
+            ['label' => 'Resultado', 'route' => 'exames.show', 'icon' => 'file-circle-check', 'class' => 'btn-outline-success'],
+        ];
+        if (can('exames', 'delete')) {
+            $actions[] = ['label' => 'Excluir', 'route' => 'exames.destroy', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir este exame? Esta ação não pode ser desfeita.'];
+        }
+        return $actions;
     }
 
     private function renderForm(string $title, array $values, array $errors): void

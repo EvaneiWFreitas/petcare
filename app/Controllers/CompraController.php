@@ -52,7 +52,12 @@ final class CompraController extends Controller
             'Status' => 'status',
             'Ações' => static function (array $row): string {
                 $id = (int) ($row['id'] ?? 0);
-                return '<div class="d-flex justify-content-end"><a href="' . e(url('compras.show', ['id' => $id])) . '" class="btn btn-sm btn-outline-primary" title="Visualizar"><i class="fa-solid fa-eye"></i></a></div>';
+                $html = '<div class="d-flex justify-content-end gap-1 flex-wrap">';
+                $html .= render_action('compras.show', ['id' => $id], ['label' => 'Visualizar', 'icon' => 'eye', 'class' => 'btn-outline-primary']);
+                if (can('compras', 'delete')) {
+                    $html .= render_action('compras.destroy', ['id' => $id], ['label' => 'Excluir', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir esta compra? Esta ação não pode ser desfeita.']);
+                }
+                return $html . '</div>';
             },
         ];
 
@@ -239,6 +244,26 @@ final class CompraController extends Controller
         log_action('recebeu_compra', 'compras', $id, 'Compra recebida e estoque atualizado.');
         flash('success', 'Compra recebida e estoque atualizado com sucesso.');
         $this->redirectTo('compras.show', ['id' => $id]);
+    }
+
+    public function destroy(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        $compra = $id > 0 ? Database::fetch('SELECT status, recebido_em FROM compras WHERE id = :id', ['id' => $id]) : null;
+        if ($compra === null) {
+            abort(404, 'Compra não encontrada.');
+        }
+
+        if (($compra['status'] ?? '') === 'recebido' || ($compra['recebido_em'] ?? null) !== null) {
+            flash('error', 'Não é possível excluir: esta compra já foi recebida.');
+            $this->redirect('compras.index');
+        }
+
+        Database::transaction(static fn(): int => Database::delete('compras', 'id = :id', ['id' => $id]));
+        log_action('excluiu_compra', 'compras', $id, 'Compra excluída.');
+        clear_old();
+        flash('success', 'Compra excluída com sucesso.');
+        $this->redirect('compras.index');
     }
 
     private function renderForm(string $title, array $values, array $errors): void

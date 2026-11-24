@@ -17,7 +17,7 @@ $rows = $rows ?? [];
             <div class="col-sm-6 col-lg-4">
                 <div class="card border-0 shadow-petcare h-100">
                     <?php if (!empty($row['foto'])): ?>
-                        <img src="<?= e($row['foto']) ?>" class="card-img-top" alt="<?= e($row['nome'] ?? 'Animal') ?>" style="height:200px;object-fit:cover;">
+                        <img src="<?= e(upload_url((string) $row['foto'])) ?>" class="card-img-top" alt="<?= e($row['nome'] ?? 'Animal') ?>" style="height:200px;object-fit:cover;" loading="lazy">
                     <?php else: ?>
                         <div class="bg-light d-flex align-items-center justify-content-center" style="height:200px;"><i class="fa-solid fa-paw fa-3x text-muted"></i></div>
                     <?php endif; ?>

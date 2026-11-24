@@ -47,9 +47,7 @@ final class ProfissionalController extends Controller
             'rows' => $rows,
             'search' => $search,
             'paginator' => $paginator,
-            'actions' => [
-                ['label' => 'Editar', 'route' => 'veterinarios.edit', 'icon' => 'pen', 'class' => 'btn-outline-secondary'],
-            ],
+            'actions' => $this->indexActions(),
         ]);
     }
 
@@ -141,6 +139,37 @@ final class ProfissionalController extends Controller
         clear_old();
         flash('success', 'Veterinário atualizado com sucesso.');
         $this->redirect('veterinarios.index');
+    }
+
+    public function destroy(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        $profissional = $id > 0 ? $this->find($id) : null;
+        if ($profissional === null) {
+            abort(404, 'Veterinário não encontrado.');
+        }
+
+        if ((int) ($profissional['ativo'] ?? 0) === 0) {
+            flash('warning', 'Este veterinário já está inativo.');
+            $this->redirect('veterinarios.index');
+        }
+
+        Database::transaction(static fn(): int => Database::update('veterinarios', ['ativo' => 0], 'id = :id', ['id' => $id]));
+        log_action('inativou_veterinario', 'usuarios', $id, 'Veterinário inativado.');
+        clear_old();
+        flash('success', 'Veterinário inativado com sucesso.');
+        $this->redirect('veterinarios.index');
+    }
+
+    private function indexActions(): array
+    {
+        $actions = [
+            ['label' => 'Editar', 'route' => 'veterinarios.edit', 'icon' => 'pen', 'class' => 'btn-outline-secondary'],
+        ];
+        if (can('usuarios', 'delete')) {
+            $actions[] = ['label' => 'Inativar', 'route' => 'veterinarios.destroy', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Inativar este veterinário? Ele não poderá mais ser selecionado em novos registros.'];
+        }
+        return $actions;
     }
 
     private function find(int $id): ?array

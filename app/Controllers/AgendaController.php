@@ -51,7 +51,8 @@ final class AgendaController extends Controller
     {
         [$view, $date] = $this->periodInput();
         [$start, $end] = $this->periodBounds($view, $date);
-        $records = $this->records($start, $end);
+        $status = $this->statusInput();
+        $records = $this->records($start, $end, $status);
 
         $events = [];
         foreach ($records as $record) {
@@ -85,6 +86,8 @@ final class AgendaController extends Controller
             'start' => $start,
             'end' => $end,
             'periodLabel' => $this->periodLabel($view, $date),
+            'status' => $status,
+            'statusLabel' => $status === '' ? '' : (self::STATUS[$status] ?? $status),
             'stats' => $stats,
             'priorities' => $priorities,
         ]);
@@ -152,6 +155,25 @@ final class AgendaController extends Controller
         $this->redirect('agenda.index');
     }
 
+    public function delete(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        $agendamento = $this->find($id);
+        if ($agendamento === null) {
+            abort(404, 'Agendamento não encontrado.');
+        }
+
+        if (!in_array((string) ($agendamento['status'] ?? ''), ['finalizado', 'cancelado', 'falta'], true)) {
+            flash('error', 'Somente agendamentos finalizados ou cancelados podem ser excluídos.');
+            $this->redirect('agenda.index');
+        }
+
+        Database::transaction(static fn(): int => Database::delete('agendamentos', 'id = :id', ['id' => $id]));
+        log_action('excluiu_agendamento', 'agenda', $id, 'Agendamento ' . $agendamento['codigo'] . ' excluído.');
+        flash('success', 'Agendamento excluído com sucesso.');
+        $this->redirect('agenda.index');
+    }
+
     private function periodInput(): array
     {
         $view = (string) Request::get('view', 'week');
@@ -199,17 +221,31 @@ final class AgendaController extends Controller
         return $months[$month] ?? '';
     }
 
-    private function records(string $start, string $end): array
+    private function statusInput(): string
     {
+        $status = (string) Request::get('status', '');
+        return array_key_exists($status, self::STATUS) ? $status : '';
+    }
+
+    private function records(string $start, string $end, string $status = ''): array
+    {
+        if ($status !== '') {
+            $where = 'ag.status = :status';
+            $params = ['status' => $status];
+        } else {
+            $where = 'ag.data_agendamento BETWEEN :start AND :end';
+            $params = ['start' => $start, 'end' => $end];
+        }
+
         return Database::fetchAll(
             'SELECT ag.*, a.nome AS pet, c.nome AS tutor, v.nome AS veterinario
              FROM agendamentos ag
              INNER JOIN animais a ON a.id = ag.animal_id
              INNER JOIN clientes c ON c.id = ag.cliente_id
              INNER JOIN veterinarios v ON v.id = ag.veterinario_id
-             WHERE ag.data_agendamento BETWEEN :start AND :end
+             WHERE ' . $where . '
              ORDER BY ag.data_agendamento ASC, ag.hora_inicio ASC, ag.id ASC',
-            ['start' => $start, 'end' => $end]
+            $params
         );
     }
 

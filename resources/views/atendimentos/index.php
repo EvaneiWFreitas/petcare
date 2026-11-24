@@ -15,13 +15,11 @@ $actionCell = static function (array $row) use ($actionDefs): string {
         if (!empty($action['prontuario']) && (int) ($row['prontuario_id'] ?? 0) <= 0) {
             continue;
         }
-        $href = !empty($action['prontuario'])
-            ? url('prontuarios.show', ['prontuario_id' => (int) $row['prontuario_id'], 'id' => (int) $row['prontuario_id']])
-            : url((string) ($action['route'] ?? ''), ['id' => (int) ($row['id'] ?? 0)]);
-        $class = 'btn btn-sm ' . ($action['class'] ?? 'btn-outline-secondary');
-        $icon = (string) ($action['icon'] ?? 'circle-info');
-        $label = (string) ($action['label'] ?? 'Ação');
-        $html .= '<a href="' . e($href) . '" class="' . e($class) . '" title="' . e($label) . '"><i class="fa-solid fa-' . e($icon) . '"></i></a>';
+        if (!empty($action['prontuario'])) {
+            $html .= render_action('prontuarios.show', ['prontuario_id' => (int) $row['prontuario_id'], 'id' => (int) $row['prontuario_id']], $action);
+        } else {
+            $html .= render_action((string) ($action['route'] ?? ''), ['id' => (int) ($row['id'] ?? 0)], $action);
+        }
     }
     return $html . '</div>';
 };

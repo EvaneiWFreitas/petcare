@@ -78,6 +78,9 @@ $paginator = $paginator ?? null;
                                     <?php if (can('usuarios', 'approve')): ?>
                                         <a href="<?= e(url('usuarios.permissions')) ?>" class="btn btn-sm btn-outline-primary" title="Permissões"><i class="fa-solid fa-key"></i></a>
                                     <?php endif; ?>
+                                    <?php if (can('usuarios', 'delete') && (int) ($row['id'] ?? 0) !== (int) (user()['id'] ?? 0)): ?>
+                                        <?= render_action('usuarios.destroy', ['id' => $row['id']], ['label' => 'Excluir', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir este usuário? Ele será inativado e perderá o acesso ao sistema.']) ?>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>

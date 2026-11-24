@@ -12,11 +12,7 @@ $actionDefs = $actions ?? [];
 $actionCell = static function (array $row) use ($actionDefs): string {
     $html = '<div class="d-flex justify-content-end gap-1 flex-wrap">';
     foreach ($actionDefs as $action) {
-        $href = url((string) ($action['route'] ?? ''), ['id' => (int) ($row['id'] ?? 0)]);
-        $class = 'btn btn-sm ' . ($action['class'] ?? 'btn-outline-secondary');
-        $icon = (string) ($action['icon'] ?? 'circle-info');
-        $label = (string) ($action['label'] ?? 'Ação');
-        $html .= '<a href="' . e($href) . '" class="' . e($class) . '" title="' . e($label) . '"><i class="fa-solid fa-' . e($icon) . '"></i></a>';
+        $html .= render_action((string) ($action['route'] ?? ''), ['id' => (int) ($row['id'] ?? 0)], $action);
     }
     return $html . '</div>';
 };

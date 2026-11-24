@@ -72,6 +72,14 @@ final class AtendimentoController extends Controller
         }
         $extraFilters .= '</select></div>';
 
+        $actions = [
+            ['label' => 'Visualizar', 'route' => 'atendimentos.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
+            ['label' => 'Editar prontuário', 'route' => 'prontuarios.show', 'icon' => 'file-pen', 'class' => 'btn-outline-secondary', 'prontuario' => true],
+        ];
+        if (can('atendimentos', 'delete')) {
+            $actions[] = ['label' => 'Excluir', 'route' => 'atendimentos.destroy', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir este atendimento? Esta ação não pode ser desfeita.'];
+        }
+
         $this->render('atendimentos/index', [
             'title' => 'Atendimentos',
             'rows' => $rows,
@@ -79,10 +87,7 @@ final class AtendimentoController extends Controller
             'status' => $status,
             'extraFilters' => $extraFilters,
             'paginator' => $paginator,
-            'actions' => [
-                ['label' => 'Visualizar', 'route' => 'atendimentos.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
-                ['label' => 'Editar prontuário', 'route' => 'prontuarios.show', 'icon' => 'file-pen', 'class' => 'btn-outline-secondary', 'prontuario' => true],
-            ],
+            'actions' => $actions,
         ]);
     }
 
@@ -315,6 +320,20 @@ final class AtendimentoController extends Controller
             'actions' => $actions,
             'recordId' => $id,
         ]);
+    }
+
+    public function destroy(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        if ($id <= 0 || (int) Database::scalar('SELECT COUNT(*) FROM atendimentos WHERE id = :id', ['id' => $id]) === 0) {
+            abort(404, 'Atendimento não encontrado.');
+        }
+
+        Database::transaction(static fn(): int => Database::delete('atendimentos', 'id = :id', ['id' => $id]));
+        log_action('excluiu_atendimento', 'atendimentos', $id, 'Atendimento excluído.');
+        clear_old();
+        flash('success', 'Atendimento excluído com sucesso.');
+        $this->redirect('atendimentos.index');
     }
 
     private function renderForm(string $title, array $values, array $errors, string $clienteNome): void

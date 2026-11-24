@@ -67,10 +67,7 @@ final class CirurgiaController extends Controller
             'createRoute' => 'cirurgias.create',
             'search' => $search,
             'paginator' => $paginator,
-            'actions' => [
-                ['label' => 'Visualizar', 'route' => 'cirurgias.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
-                ['label' => 'Editar', 'route' => 'cirurgias.show', 'icon' => 'pen', 'class' => 'btn-outline-secondary'],
-            ],
+            'actions' => $this->indexActions(),
         ]);
     }
 
@@ -244,6 +241,32 @@ final class CirurgiaController extends Controller
         log_action('atualizou_cirurgia', 'cirurgias', $id, 'Cirurgia #' . $id . ' atualizada.');
         flash('success', 'Cirurgia atualizada com sucesso.');
         $this->redirectTo('cirurgias.show', ['id' => $id]);
+    }
+
+    public function destroy(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        if ($id <= 0 || (int) Database::scalar('SELECT COUNT(*) FROM cirurgias WHERE id = :id', ['id' => $id]) === 0) {
+            abort(404, 'Cirurgia não encontrada.');
+        }
+
+        Database::transaction(static fn(): int => Database::delete('cirurgias', 'id = :id', ['id' => $id]));
+        log_action('excluiu_cirurgia', 'cirurgias', $id, 'Cirurgia excluída.');
+        clear_old();
+        flash('success', 'Cirurgia excluída com sucesso.');
+        $this->redirect('cirurgias.index');
+    }
+
+    private function indexActions(): array
+    {
+        $actions = [
+            ['label' => 'Visualizar', 'route' => 'cirurgias.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
+            ['label' => 'Editar', 'route' => 'cirurgias.show', 'icon' => 'pen', 'class' => 'btn-outline-secondary'],
+        ];
+        if (can('cirurgias', 'delete')) {
+            $actions[] = ['label' => 'Excluir', 'route' => 'cirurgias.destroy', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir esta cirurgia? Esta ação não pode ser desfeita.'];
+        }
+        return $actions;
     }
 
     private function fields(): array

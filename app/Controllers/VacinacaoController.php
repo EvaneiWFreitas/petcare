@@ -84,9 +84,7 @@ final class VacinacaoController extends Controller
             'extraFilters' => $extraFilters,
             'paginator' => $paginator,
             'alertas' => $alertas,
-            'actions' => [
-                ['label' => 'Carteira', 'route' => 'vacinas.carteira', 'icon' => 'book-medical', 'class' => 'btn-outline-primary'],
-            ],
+            'actions' => $this->indexActions(),
         ]);
     }
 
@@ -187,6 +185,31 @@ final class VacinacaoController extends Controller
                 'observacoes' => ['label' => 'Observações', 'type' => 'textarea', 'rules' => 'nullable', 'col' => 'col-md-12', 'rows' => 3],
             ],
         ]);
+    }
+
+    public function destroy(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        if ($id <= 0 || (int) Database::scalar('SELECT COUNT(*) FROM vacinacoes WHERE id = :id', ['id' => $id]) === 0) {
+            abort(404, 'Vacinação não encontrada.');
+        }
+
+        Database::transaction(static fn(): int => Database::delete('vacinacoes', 'id = :id', ['id' => $id]));
+        log_action('excluiu_vacinacao', 'vacinas', $id, 'Vacinação excluída.');
+        clear_old();
+        flash('success', 'Vacinação excluída com sucesso.');
+        $this->redirect('vacinas.index');
+    }
+
+    private function indexActions(): array
+    {
+        $actions = [
+            ['label' => 'Carteira', 'route' => 'vacinas.carteira', 'icon' => 'book-medical', 'class' => 'btn-outline-primary'],
+        ];
+        if (can('vacinas', 'delete')) {
+            $actions[] = ['label' => 'Excluir', 'route' => 'vacinas.destroy', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir esta vacinação? Esta ação não pode ser desfeita.'];
+        }
+        return $actions;
     }
 
     private function collect(): array

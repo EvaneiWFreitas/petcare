@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PetCare\Core\Database;
 use PetCare\Core\Request;
 use PetCare\Core\Session;
+use PetCare\Services\UploadService;
 
 if (!function_exists('e')) {
     function e(mixed $value): string
@@ -100,6 +101,34 @@ if (!function_exists('redirect')) {
     }
 }
 
+if (!function_exists('redirect_back')) {
+    function redirect_back(string $default = 'dashboard.index'): never
+    {
+        $referer = (string) ($_SERVER['HTTP_REFERER'] ?? '');
+        $parts = parse_url($referer);
+        $path = is_array($parts) ? (string) ($parts['path'] ?? '') : '';
+        $host = is_array($parts) ? strtolower((string) ($parts['host'] ?? '')) : '';
+
+        if ($path === '' || str_starts_with($path, '//')) {
+            redirect($default);
+        }
+        if ($host !== '') {
+            $currentHost = strtolower((string) ($_SERVER['SERVER_NAME'] ?? ''));
+            $currentPort = (int) ($_SERVER['SERVER_PORT'] ?? 80);
+            $refererPort = (int) ($parts['port'] ?? (($parts['scheme'] ?? '') === 'https' ? 443 : 80));
+            if ($host !== $currentHost || $refererPort !== $currentPort) {
+                redirect($default);
+            }
+        }
+
+        $target = $path . (is_array($parts) && isset($parts['query']) ? '?' . $parts['query'] : '');
+        if (!headers_sent()) {
+            header('Location: ' . $target, true, 302);
+        }
+        exit;
+    }
+}
+
 if (!function_exists('flash')) {
     function flash(string $type, string $message): void
     {
@@ -147,6 +176,47 @@ if (!function_exists('csrf_validate')) {
     {
         $token = Request::post('_token') ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? null);
         return Session::validCsrf(is_string($token) ? $token : null);
+    }
+}
+
+if (!function_exists('render_action')) {
+    function render_action(string $route, array $params, array $action): string
+    {
+        $href = url($route, $params);
+        $btnClass = 'btn btn-sm ' . ($action['class'] ?? 'btn-outline-secondary');
+        $icon = (string) ($action['icon'] ?? 'circle-info');
+        $label = (string) ($action['label'] ?? 'Ação');
+        $confirm = (string) ($action['confirm'] ?? '');
+        $text = !empty($action['showLabel']) ? '<span class="d-none d-sm-inline ms-1">' . e($label) . '</span>' : '';
+
+        if ((string) ($action['method'] ?? 'get') === 'post') {
+            $script = $confirm !== '' ? ' onsubmit="return confirm(\'' . e($confirm) . '\')"' : '';
+            $hidden = csrf_field();
+            foreach ($params as $key => $value) {
+                if (is_scalar($value)) {
+                    $hidden .= '<input type="hidden" name="' . e((string) $key) . '" value="' . e((string) $value) . '">';
+                }
+            }
+            return '<form method="post" action="' . e($href) . '"' . $script . '>'
+                . $hidden
+                . '<button type="submit" class="' . e($btnClass) . '" title="' . e($label) . '"><i class="fa-solid fa-' . e($icon) . '"></i>' . $text . '</button>'
+                . '</form>';
+        }
+
+        $script = $confirm !== '' ? ' onclick="return confirm(\'' . e($confirm) . '\')"' : '';
+        return '<a href="' . e($href) . '" class="' . e($btnClass) . '" title="' . e($label) . '"' . $script . '><i class="fa-solid fa-' . e($icon) . '"></i>' . $text . '</a>';
+    }
+}
+
+if (!function_exists('delete_anexos')) {
+    function delete_anexos(string $entidade, int $id): void
+    {
+        $params = ['entidade' => $entidade, 'id' => $id];
+        $rows = Database::fetchAll('SELECT caminho FROM anexos WHERE entidade = :entidade AND entidade_id = :id', $params);
+        Database::delete('anexos', 'entidade = :entidade AND entidade_id = :id', $params);
+        foreach ($rows as $row) {
+            UploadService::delete((string) ($row['caminho'] ?? ''));
+        }
     }
 }
 
