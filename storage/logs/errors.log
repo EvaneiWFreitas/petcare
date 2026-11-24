@@ -1,0 +1,5 @@
+[2026-11-24 08:05:49] Error: Undefined constant "DIRECTORY_SEPARator" em C:\xampp\htdocs\petcare\app\Helpers\functions.php:51
+[2026-11-24 08:07:06] TypeError: PetCare\Core\Controller::render(): Argument #3 ($layout) must be of type string, null given, called in C:\xampp\htdocs\petcare\app\Controllers\AuthController.php on line 89 em C:\xampp\htdocs\petcare\app\Core\Controller.php:9
+[2026-11-24 08:07:06] TypeError: PetCare\Core\Controller::render(): Argument #3 ($layout) must be of type string, null given, called in C:\xampp\htdocs\petcare\app\Controllers\AuthController.php on line 89 em C:\xampp\htdocs\petcare\app\Core\Controller.php:9
+[2026-11-24 08:08:01] PDOException: SQLSTATE[HY093]: Invalid parameter number em C:\xampp\htdocs\petcare\app\Core\Database.php:40
+[2026-11-24 08:08:54] PDOException: SQLSTATE[42000]: Syntax error or access violation: 1064 You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ''15' OFFSET '0'' at line 5 em C:\xampp\htdocs\petcare\app\Core\Database.php:40

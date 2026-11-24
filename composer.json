@@ -1,0 +1,27 @@
+{
+    "name": "petcare/gestao-veterinaria",
+    "description": "Sistema de gestao veterinaria em PHP puro com MySQL/MariaDB",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.2",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*",
+        "ext-mbstring": "*",
+        "ext-openssl": "*",
+        "ext-json": "*",
+        "ext-fileinfo": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "PetCare\\": "app/"
+        }
+    },
+    "scripts": {
+        "lint": "php -r \"$code = 0; $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator(__DIR__, FilesystemIterator::SKIP_DOTS)); foreach ($it as $file) { $path = $file->getPathname(); if ($file->isFile() && $file->getExtension() === 'php' && strpos($path, DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR) === false) { passthru('php -l ' . escapeshellarg($path), $result); $code = $code ?: $result; } } exit($code);\"",
+        "check:routes": "php -r \"require 'app/Core/Autoloader.php'; PetCare\\Core\\Autoloader::register(); $routes = require 'routes/web.php'; $bad = 0; foreach ($routes as $name => $route) { [$class, $method] = explode('@', $route['controller']); $fqcn = 'PetCare\\\\Controllers\\\\' . $class; if (!class_exists($fqcn) || !method_exists($fqcn, $method)) { fwrite(STDERR, 'Rota invalida: ' . $name . PHP_EOL); $bad = 1; } } echo 'Rotas: ' . count($routes) . PHP_EOL; exit($bad);\""
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
