@@ -7,6 +7,7 @@ namespace PetCare\Controllers;
 use PetCare\Core\Controller;
 use PetCare\Core\Database;
 use PetCare\Core\Request;
+use PetCare\Services\UploadService;
 use PetCare\Validators\Validator;
 
 final class ClienteController extends Controller
@@ -40,7 +41,7 @@ final class ClienteController extends Controller
         $params['offset'] = $paginator['offset'];
 
         $rows = Database::fetchAll(
-            'SELECT c.id, c.codigo, c.nome, c.cpf, c.telefone, c.email,
+            'SELECT c.id, c.codigo, c.nome, c.foto, c.cpf, c.telefone, c.email,
                     CASE WHEN c.ativo = 1 THEN "ativo" ELSE "inativo" END AS status
              FROM clientes c' . $sqlWhere . '
              ORDER BY c.nome ASC
@@ -75,6 +76,7 @@ final class ClienteController extends Controller
         $defaults = $this->defaults();
         $defaults['codigo'] = gerar_codigo('CLI', 'clientes');
         $defaults['ativo'] = 1;
+        $defaults['foto'] = '';
 
         $this->render('clientes/form', [
             'title' => 'Novo cliente',
@@ -83,6 +85,7 @@ final class ClienteController extends Controller
             'action' => 'clientes.store',
             'cancelRoute' => 'clientes.index',
             'submitLabel' => 'Cadastrar cliente',
+            'enctype' => 'multipart/form-data',
         ]);
     }
 
@@ -93,20 +96,40 @@ final class ClienteController extends Controller
             $data['codigo'] = gerar_codigo('CLI', 'clientes');
         }
         $errors = (new Validator($this->rules()))->validate($data + ['id' => 0]);
+        $photo = null;
+
+        if ($errors === []) {
+            try {
+                $photo = UploadService::handle(Request::file('foto'), 'clientes', 'image');
+            } catch (\RuntimeException $e) {
+                $errors['foto'] = $e->getMessage();
+            }
+        }
 
         if ($errors !== []) {
             $this->render('clientes/form', [
                 'title' => 'Novo cliente',
-                'values' => $data,
+                'values' => $data + ['foto' => ''],
                 'errors' => $errors,
                 'action' => 'clientes.store',
                 'cancelRoute' => 'clientes.index',
                 'submitLabel' => 'Cadastrar cliente',
+                'enctype' => 'multipart/form-data',
             ]);
             return;
         }
 
-        $id = Database::transaction(static fn(): int => Database::insert('clientes', $data));
+        if ($photo !== null) {
+            $data['foto'] = $photo;
+        }
+
+        try {
+            $id = Database::transaction(static fn(): int => Database::insert('clientes', $data));
+        } catch (\Throwable $e) {
+            UploadService::delete($photo);
+            throw $e;
+        }
+
         log_action('criou_cliente', 'clientes', $id, 'Cliente ' . $data['nome'] . ' cadastrado.');
         clear_old();
         flash('success', 'Cliente cadastrado com sucesso.');
@@ -210,32 +233,58 @@ final class ClienteController extends Controller
             'action' => 'clientes.update',
             'cancelRoute' => 'clientes.index',
             'submitLabel' => 'Salvar alterações',
+            'enctype' => 'multipart/form-data',
         ]);
     }
 
     public function update(): void
     {
         $id = (int) Request::post('id', 0);
-        if ($this->find($id) === null) {
+        $cliente = $this->find($id);
+        if ($cliente === null) {
             abort(404, 'Cliente não encontrado.');
         }
 
         $data = $this->collect($id);
         $errors = (new Validator($this->rules()))->validate($data + ['id' => $id]);
+        $photo = null;
+
+        if ($errors === []) {
+            try {
+                $photo = UploadService::handle(Request::file('foto'), 'clientes', 'image');
+            } catch (\RuntimeException $e) {
+                $errors['foto'] = $e->getMessage();
+            }
+        }
 
         if ($errors !== []) {
             $this->render('clientes/form', [
                 'title' => 'Editar cliente',
-                'values' => $data + ['id' => $id],
+                'values' => $data + ['id' => $id, 'foto' => $cliente['foto'] ?? null],
                 'errors' => $errors,
                 'action' => 'clientes.update',
                 'cancelRoute' => 'clientes.index',
                 'submitLabel' => 'Salvar alterações',
+                'enctype' => 'multipart/form-data',
             ]);
             return;
         }
 
-        Database::transaction(static fn(): int => Database::update('clientes', $data, 'id = :id', ['id' => $id]));
+        if ($photo !== null) {
+            $data['foto'] = $photo;
+        }
+
+        try {
+            Database::transaction(static fn(): int => Database::update('clientes', $data, 'id = :id', ['id' => $id]));
+        } catch (\Throwable $e) {
+            UploadService::delete($photo);
+            throw $e;
+        }
+
+        if ($photo !== null) {
+            UploadService::delete($cliente['foto'] ?? null);
+        }
+
         log_action('editou_cliente', 'clientes', $id, 'Dados do cliente ' . $data['nome'] . ' atualizados.');
         clear_old();
         flash('success', 'Cliente atualizado com sucesso.');

@@ -30,6 +30,15 @@ final class Router
             abort(403, 'Você não tem permissão para acessar este módulo.');
         }
 
+        if (!empty($route['superadmin']) && !is_superadmin()) {
+            abort(403, 'Área restrita ao proprietário do PetCare.');
+        }
+
+        if (!license_route_allowed($name, $route)) {
+            flash('error', 'A licença do PetCare está vencida e bloqueou este acesso.');
+            redirect('licenca.expirada');
+        }
+
         if (Request::isPost() && !csrf_validate()) {
             Session::renewCsrf();
             flash('error', 'Sessão expirada. Tente novamente.');

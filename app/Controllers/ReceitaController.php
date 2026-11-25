@@ -21,7 +21,7 @@ final class ReceitaController extends Controller
         $params = [];
 
         if ($search !== '') {
-            $where[] = '(a.nome LIKE :q OR c.nome LIKE :q OR EXISTS (SELECT 1 FROM receita_itens ri WHERE ri.receita_id = rc.id AND (ri.medicamento LIKE :q OR ri.dosagem LIKE :q)))';
+            $where[] = '(rc.codigo LIKE :q OR a.nome LIKE :q OR c.nome LIKE :q OR v.nome LIKE :q OR rc.orientacoes LIKE :q OR EXISTS (SELECT 1 FROM receita_itens ri WHERE ri.receita_id = rc.id AND (ri.medicamento LIKE :q OR ri.dosagem LIKE :q OR ri.via_administracao LIKE :q OR ri.frequencia LIKE :q OR ri.duracao LIKE :q OR ri.observacoes LIKE :q)))';
             $params['q'] = '%' . $search . '%';
         }
         $sqlWhere = $where === [] ? '' : ' WHERE ' . implode(' AND ', $where);
@@ -77,15 +77,7 @@ final class ReceitaController extends Controller
             'medicamentos' => [],
         ];
 
-        $this->render('receitas/form', [
-            'title' => 'Nova receita',
-            'values' => $this->withOld($defaults),
-            'errors' => [],
-            'action' => 'receitas.store',
-            'cancelRoute' => 'receitas.index',
-            'submitLabel' => 'Emitir receita',
-            'options' => $this->options(),
-        ]);
+        $this->renderForm('Nova receita', $this->withOld($defaults), [], 'receitas.store', 'Emitir receita');
     }
 
     public function store(): void
@@ -95,15 +87,7 @@ final class ReceitaController extends Controller
 
         if ($errors !== []) {
             set_old($data);
-            $this->render('receitas/form', [
-                'title' => 'Nova receita',
-                'values' => $data,
-                'errors' => $errors,
-                'action' => 'receitas.store',
-                'cancelRoute' => 'receitas.index',
-                'submitLabel' => 'Emitir receita',
-                'options' => $this->options(),
-            ]);
+            $this->renderForm('Nova receita', $data, $errors, 'receitas.store', 'Emitir receita');
             return;
         }
 
@@ -141,6 +125,74 @@ final class ReceitaController extends Controller
         $this->redirectTo('receitas.show', ['id' => $id]);
     }
 
+    public function edit(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::get('id', 0);
+        $data = $this->load($id);
+        $receita = $data['receita'];
+
+        $values = [
+            'id' => $id,
+            'animal_id' => $receita['animal_id'],
+            'cliente_id' => $receita['cliente_id'],
+            'veterinario_id' => $receita['veterinario_id'],
+            'data_prescricao' => $receita['data_prescricao'],
+            'orientacoes' => $receita['orientacoes'] ?? '',
+            'controle_especial' => (int) $receita['controle_especial'],
+            'assinatura' => $receita['assinatura'] ?? '',
+            'medicamentos' => $data['itens'],
+        ];
+
+        $this->renderForm('Editar receita', $this->withOld($values), [], 'receitas.update', 'Salvar alterações');
+    }
+
+    public function update(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        if ($id <= 0 || (int) Database::scalar('SELECT COUNT(*) FROM receitas WHERE id = :id', ['id' => $id]) === 0) {
+            abort(404, 'Receita não encontrada.');
+        }
+
+        $data = $this->collect();
+        $errors = $this->validate($data);
+        if ($errors !== []) {
+            $data['id'] = $id;
+            set_old($data);
+            $this->renderForm('Editar receita', $this->withOld($data), $errors, 'receitas.update', 'Salvar alterações');
+            return;
+        }
+
+        Database::transaction(static function () use ($id, $data): void {
+            Database::update('receitas', [
+                'animal_id' => (int) $data['animal_id'],
+                'cliente_id' => (int) $data['cliente_id'],
+                'veterinario_id' => (int) $data['veterinario_id'],
+                'data_prescricao' => $data['data_prescricao'],
+                'orientacoes' => $data['orientacoes'] === '' ? null : $data['orientacoes'],
+                'controle_especial' => (int) $data['controle_especial'],
+                'assinatura' => $data['assinatura'] === '' ? null : $data['assinatura'],
+            ], 'id = :id', ['id' => $id]);
+
+            Database::delete('receita_itens', 'receita_id = :id', ['id' => $id]);
+            foreach ($data['medicamentos'] as $item) {
+                Database::insert('receita_itens', [
+                    'receita_id' => $id,
+                    'medicamento' => $item['medicamento'],
+                    'dosagem' => $item['dosagem'] === '' ? null : $item['dosagem'],
+                    'via_administracao' => $item['via_administracao'] === '' ? null : $item['via_administracao'],
+                    'frequencia' => $item['frequencia'] === '' ? null : $item['frequencia'],
+                    'duracao' => $item['duracao'] === '' ? null : $item['duracao'],
+                    'observacoes' => $item['observacoes'] === '' ? null : $item['observacoes'],
+                ]);
+            }
+        });
+
+        log_action('editou_receita', 'receitas', $id, 'Receita atualizada.');
+        clear_old();
+        flash('success', 'Receita atualizada com sucesso.');
+        $this->redirectTo('receitas.show', ['id' => $id]);
+    }
+
     public function show(?int $id = null): void
     {
         $id = $id ?? (int) Request::get('id', 0);
@@ -168,10 +220,7 @@ final class ReceitaController extends Controller
                     'Assinatura' => $data['receita']['assinatura'],
                 ],
             ],
-            'actions' => [
-                ['label' => 'Imprimir', 'route' => 'receitas.print', 'icon' => 'print', 'class' => 'btn-outline-success'],
-                ['label' => 'Voltar', 'route' => 'receitas.index', 'icon' => 'arrow-left', 'class' => 'btn-outline-secondary'],
-            ],
+            'actions' => $this->showActions($id),
             'recordId' => $id,
         ]);
     }
@@ -224,27 +273,63 @@ final class ReceitaController extends Controller
         $this->redirect('receitas.index');
     }
 
+    private function showActions(int $id): array
+    {
+        $actions = [
+            ['label' => 'Imprimir', 'route' => 'receitas.print', 'icon' => 'print', 'class' => 'btn-outline-success'],
+            ['label' => 'Voltar', 'route' => 'receitas.index', 'icon' => 'arrow-left', 'class' => 'btn-outline-secondary'],
+        ];
+        if (can('receitas', 'edit')) {
+            $actions[] = ['label' => 'Editar', 'route' => 'receitas.edit', 'icon' => 'pen', 'class' => 'btn-outline-primary'];
+        }
+        return $actions;
+    }
+
     private function indexActions(): array
     {
         $actions = [
             ['label' => 'Visualizar', 'route' => 'receitas.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
             ['label' => 'Imprimir', 'route' => 'receitas.print', 'icon' => 'print', 'class' => 'btn-outline-secondary'],
         ];
+        if (can('receitas', 'edit')) {
+            $actions[] = ['label' => 'Editar', 'route' => 'receitas.edit', 'icon' => 'pen', 'class' => 'btn-outline-primary'];
+        }
         if (can('receitas', 'delete')) {
             $actions[] = ['label' => 'Excluir', 'route' => 'receitas.destroy', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir esta receita? Esta ação não pode ser desfeita.'];
         }
         return $actions;
     }
 
+    private function renderForm(
+        string $title,
+        array $values,
+        array $errors,
+        string $action,
+        string $submitLabel
+    ): void
+    {
+        $this->render('receitas/form', [
+            'title' => $title,
+            'values' => $values,
+            'errors' => $errors,
+            'action' => $action,
+            'cancelRoute' => 'receitas.index',
+            'submitLabel' => $submitLabel,
+            'options' => $this->options(),
+        ]);
+    }
+
     private function options(): array
     {
         $animais = [];
+        $animalClientes = [];
         foreach (Database::fetchAll(
-            'SELECT a.id, a.nome, c.nome AS tutor FROM animais a
+            'SELECT a.id, a.cliente_id, a.nome, c.nome AS tutor FROM animais a
              INNER JOIN clientes c ON c.id = a.cliente_id
              ORDER BY a.nome ASC'
         ) as $row) {
             $animais[(int) $row['id']] = $row['nome'] . ' · ' . $row['tutor'];
+            $animalClientes[(int) $row['id']] = (int) $row['cliente_id'];
         }
         $clientes = [];
         foreach (Database::fetchAll('SELECT id, nome FROM clientes ORDER BY nome ASC') as $row) {
@@ -254,7 +339,7 @@ final class ReceitaController extends Controller
         foreach (Database::fetchAll('SELECT id, nome, crmv FROM veterinarios WHERE ativo = 1 ORDER BY nome ASC') as $row) {
             $veterinarios[(int) $row['id']] = $row['nome'] . ($row['crmv'] ? ' · CRMV ' . $row['crmv'] : '');
         }
-        return ['animais' => $animais, 'clientes' => $clientes, 'veterinarios' => $veterinarios];
+        return ['animais' => $animais, 'clientes' => $clientes, 'veterinarios' => $veterinarios, 'animal_clientes' => $animalClientes];
     }
 
     private function collect(): array
@@ -286,6 +371,7 @@ final class ReceitaController extends Controller
             }
         }
         $data['medicamentos'] = $itens;
+        $data['id'] = (int) Request::post('id', 0);
         return $data;
     }
 

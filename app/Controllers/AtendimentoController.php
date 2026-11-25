@@ -7,6 +7,7 @@ namespace PetCare\Controllers;
 use PetCare\Core\Controller;
 use PetCare\Core\Database;
 use PetCare\Core\Request;
+use PetCare\Services\AtendimentoService;
 use PetCare\Validators\Validator;
 
 final class AtendimentoController extends Controller
@@ -24,6 +25,13 @@ final class AtendimentoController extends Controller
 
     public function index(): void
     {
+        $importados = AtendimentoService::syncFinalizados();
+        if ($importados > 0) {
+            flash('info', $importados === 1
+                ? '1 atendimento finalizado foi importado da agenda.'
+                : $importados . ' atendimentos finalizados foram importados da agenda.');
+        }
+
         $page = max(1, (int) Request::get('page', 1));
         $search = trim((string) Request::get('q', ''));
         $status = (string) Request::get('status', '');
@@ -34,7 +42,7 @@ final class AtendimentoController extends Controller
         $where = [];
         $params = [];
         if ($search !== '') {
-            $where[] = '(a.nome LIKE :q OR c.nome LIKE :q OR at.queixa_principal LIKE :q)';
+            $where[] = '(a.nome LIKE :q OR c.nome LIKE :q OR v.nome LIKE :q OR at.codigo LIKE :q OR at.queixa_principal LIKE :q OR at.status LIKE :q)';
             $params['q'] = '%' . $search . '%';
         }
         if ($status !== '') {
@@ -44,9 +52,10 @@ final class AtendimentoController extends Controller
         $sqlWhere = $where === [] ? '' : ' WHERE ' . implode(' AND ', $where);
 
         $total = (int) Database::scalar(
-            'SELECT COUNT(*) FROM atendimentos at
-             INNER JOIN animais a ON a.id = at.animal_id
-             INNER JOIN clientes c ON c.id = a.cliente_id' . $sqlWhere,
+             'SELECT COUNT(*) FROM atendimentos at
+              INNER JOIN animais a ON a.id = at.animal_id
+              INNER JOIN clientes c ON c.id = a.cliente_id
+              LEFT JOIN veterinarios v ON v.id = at.veterinario_id' . $sqlWhere,
             $params
         );
         $paginator = $this->paginator($total, $page);
@@ -76,6 +85,9 @@ final class AtendimentoController extends Controller
             ['label' => 'Visualizar', 'route' => 'atendimentos.show', 'icon' => 'eye', 'class' => 'btn-outline-primary'],
             ['label' => 'Editar prontuário', 'route' => 'prontuarios.show', 'icon' => 'file-pen', 'class' => 'btn-outline-secondary', 'prontuario' => true],
         ];
+        if (can('atendimentos', 'edit')) {
+            $actions[] = ['label' => 'Editar', 'route' => 'atendimentos.edit', 'icon' => 'pen', 'class' => 'btn-outline-primary'];
+        }
         if (can('atendimentos', 'delete')) {
             $actions[] = ['label' => 'Excluir', 'route' => 'atendimentos.destroy', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir este atendimento? Esta ação não pode ser desfeita.'];
         }
@@ -115,7 +127,7 @@ final class AtendimentoController extends Controller
             $defaults['veterinario_id'] = (int) $agendamento['veterinario_id'];
             $defaults['valor'] = number_format((float) $agendamento['valor'], 2, '.', '');
             $defaults['queixa_principal'] = (string) ($agendamento['observacoes'] ?? '');
-            $defaults['data_atendimento'] = $this->toLocal((string) $agendamento['data_agendamento'] . ' ' . (string) ($agendamento['hora_inicio'] ?? '00:00:00'));
+            $defaults['data_atendimento'] = date('Y-m-d\TH:i');
             $clienteNome = (string) ($agendamento['cliente'] ?? '');
         }
 
@@ -222,6 +234,84 @@ final class AtendimentoController extends Controller
         $this->redirectTo('atendimentos.show', ['id' => $id]);
     }
 
+    public function edit(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::get('id', 0);
+        $atendimento = Database::fetch('SELECT * FROM atendimentos WHERE id = :id LIMIT 1', ['id' => $id]);
+        if ($atendimento === null) {
+            abort(404, 'Atendimento não encontrado.');
+        }
+
+        $values = $this->defaults();
+        foreach ($values as $key => $default) {
+            if (array_key_exists($key, $atendimento)) {
+                $values[$key] = $atendimento[$key];
+            }
+        }
+        $values['id'] = $id;
+        $values['data_atendimento'] = $this->toLocal((string) $atendimento['data_atendimento']);
+        $values['gerar_prontuario'] = Database::scalar('SELECT 1 FROM prontuarios WHERE atendimento_id = :id LIMIT 1', ['id' => $id]) !== false ? 1 : 0;
+
+        $this->renderForm(
+            'Editar atendimento',
+            $this->withOld($values),
+            [],
+            $this->clienteNomePorAnimal((int) $values['animal_id']),
+            'atendimentos.update',
+            'Salvar alterações'
+        );
+    }
+
+    public function update(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        if ($id <= 0 || (int) Database::scalar('SELECT COUNT(*) FROM atendimentos WHERE id = :id', ['id' => $id]) === 0) {
+            abort(404, 'Atendimento não encontrado.');
+        }
+
+        $data = $this->collect();
+        $data['id'] = $id;
+        $errors = $this->validate($data, $id);
+        if ($errors !== []) {
+            $values = $data;
+            $values['data_atendimento'] = $this->toLocal((string) $values['data_atendimento']);
+            set_old($values);
+            $this->renderForm(
+                'Editar atendimento',
+                $this->withOld($values),
+                $errors,
+                $this->clienteNomePorAnimal((int) $data['animal_id']),
+                'atendimentos.update',
+                'Salvar alterações'
+            );
+            return;
+        }
+
+        Database::transaction(static function () use ($id, $data): void {
+            Database::update('atendimentos', [
+                'codigo' => $data['codigo'],
+                'agendamento_id' => (int) $data['agendamento_id'] > 0 ? (int) $data['agendamento_id'] : null,
+                'animal_id' => (int) $data['animal_id'],
+                'veterinario_id' => (int) $data['veterinario_id'],
+                'data_atendimento' => $data['data_atendimento'],
+                'queixa_principal' => $data['queixa_principal'],
+                'status' => $data['status'],
+                'valor' => number_format((float) $data['valor'], 2, '.', ''),
+            ], 'id = :id', ['id' => $id]);
+
+            Database::update('prontuarios', [
+                'data_atendimento' => $data['data_atendimento'],
+                'animal_id' => (int) $data['animal_id'],
+                'veterinario_id' => (int) $data['veterinario_id'],
+            ], 'atendimento_id = :id', ['id' => $id]);
+        });
+
+        log_action('editou_atendimento', 'atendimentos', $id, 'Atendimento ' . $data['codigo'] . ' atualizado.');
+        clear_old();
+        flash('success', 'Atendimento atualizado com sucesso.');
+        $this->redirectTo('atendimentos.show', ['id' => $id]);
+    }
+
     public function show(?int $id = null): void
     {
         $id = $id ?? (int) Request::get('id', 0);
@@ -306,6 +396,9 @@ final class AtendimentoController extends Controller
                 : ['label' => 'Editar prontuário', 'route' => 'prontuarios.edit', 'icon' => 'file-pen', 'class' => 'btn-outline-primary'],
             ['label' => 'Voltar', 'route' => 'atendimentos.index', 'icon' => 'arrow-left', 'class' => 'btn-outline-secondary'],
         ];
+        if (can('atendimentos', 'edit')) {
+            $actions[] = ['label' => 'Editar', 'route' => 'atendimentos.edit', 'icon' => 'pen', 'class' => 'btn-outline-primary'];
+        }
         if ($receita !== null) {
             $actions[] = ['label' => 'Imprimir receita', 'route' => 'receitas.print', 'icon' => 'print', 'class' => 'btn-outline-success'];
         }
@@ -336,15 +429,22 @@ final class AtendimentoController extends Controller
         $this->redirect('atendimentos.index');
     }
 
-    private function renderForm(string $title, array $values, array $errors, string $clienteNome): void
+    private function renderForm(
+        string $title,
+        array $values,
+        array $errors,
+        string $clienteNome,
+        string $action = 'atendimentos.store',
+        string $submitLabel = 'Registrar atendimento'
+    ): void
     {
         $this->render('atendimentos/form', [
             'title' => $title,
             'values' => $values,
             'errors' => $errors,
-            'action' => 'atendimentos.store',
+            'action' => $action,
             'cancelRoute' => 'atendimentos.index',
-            'submitLabel' => 'Registrar atendimento',
+            'submitLabel' => $submitLabel,
             'fields' => $this->fields(),
             'clienteNome' => $clienteNome,
         ]);
@@ -443,10 +543,11 @@ final class AtendimentoController extends Controller
         }
         $data['data_atendimento'] = $this->normalizeDateTime((string) Request::post('data_atendimento', ''));
         $data['agendamento_id'] = (int) ($data['agendamento_id'] ?? 0);
+        $data['id'] = (int) Request::post('id', 0);
         return $data;
     }
 
-    private function validate(array $data): array
+    private function validate(array $data, int $id = 0): array
     {
         $errors = (new Validator([
             'codigo' => 'required|max:50|unique:atendimentos,codigo,id',
@@ -462,7 +563,7 @@ final class AtendimentoController extends Controller
             'frequencia_respiratoria' => 'nullable|integer',
             'peso' => 'nullable|numeric',
             'retorno_recomendado' => 'nullable|date',
-        ]))->validate($data + ['id' => 0]);
+        ]))->validate(array_merge(['id' => $id], $data));
 
         $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', (string) $data['data_atendimento']);
         $dateErrors = \DateTimeImmutable::getLastErrors();

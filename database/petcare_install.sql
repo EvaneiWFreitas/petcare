@@ -5,6 +5,9 @@ USE petcare_db;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- Remoção em ordem inversa de dependência
+DROP TABLE IF EXISTS historico_licencas;
+DROP TABLE IF EXISTS licencas;
+DROP TABLE IF EXISTS clinicas;
 DROP TABLE IF EXISTS prontuario_auditorias;
 DROP TABLE IF EXISTS permissoes;
 DROP TABLE IF EXISTS usuarios;
@@ -145,6 +148,7 @@ CREATE TABLE clientes (
     telefone VARCHAR(20) NULL,
     whatsapp VARCHAR(20) NULL,
     email VARCHAR(255) NULL,
+    foto VARCHAR(255) NULL,
     cep VARCHAR(10) NULL,
     endereco VARCHAR(255) NULL,
     numero VARCHAR(20) NULL,
@@ -761,6 +765,62 @@ CREATE TABLE configuracoes (
     UNIQUE KEY uq_configuracoes_chave (chave)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE clinicas (
+    id INT NOT NULL AUTO_INCREMENT,
+    codigo VARCHAR(50) NOT NULL,
+    nome VARCHAR(150) NOT NULL,
+    responsavel VARCHAR(150) NULL,
+    cnpj VARCHAR(20) NULL,
+    email VARCHAR(150) NULL,
+    telefone VARCHAR(30) NULL,
+    local_instalacao TINYINT(1) NOT NULL DEFAULT 0,
+    ativo TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_clinicas_codigo (codigo),
+    KEY idx_clinicas_local (local_instalacao)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE licencas (
+    id INT NOT NULL AUTO_INCREMENT,
+    clinica_id INT NOT NULL,
+    codigo_licenca VARCHAR(60) NOT NULL,
+    modalidade VARCHAR(30) NOT NULL DEFAULT '30_dias',
+    dias_contratados INT NOT NULL DEFAULT 30,
+    data_ativacao DATE NULL,
+    data_vencimento DATE NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'inativa',
+    licenca_permanente TINYINT(1) NOT NULL DEFAULT 0,
+    observacoes TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_licencas_clinica (clinica_id),
+    UNIQUE KEY uq_licencas_codigo (codigo_licenca),
+    KEY idx_licencas_status (status),
+    KEY idx_licencas_vencimento (data_vencimento),
+    CONSTRAINT fk_licencas_clinica FOREIGN KEY (clinica_id) REFERENCES clinicas(id) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE historico_licencas (
+    id INT NOT NULL AUTO_INCREMENT,
+    licenca_id INT NOT NULL,
+    usuario_responsavel INT NULL,
+    tipo_operacao VARCHAR(60) NOT NULL,
+    dias_adicionados INT NULL,
+    vencimento_anterior DATE NULL,
+    novo_vencimento DATE NULL,
+    descricao TEXT NULL,
+    ip_responsavel VARCHAR(45) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_historico_licenca (licenca_id),
+    KEY idx_historico_usuario (usuario_responsavel),
+    CONSTRAINT fk_historico_licencas_licenca FOREIGN KEY (licenca_id) REFERENCES licencas(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_historico_licencas_usuario FOREIGN KEY (usuario_responsavel) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- Dados iniciais: perfis
@@ -772,13 +832,18 @@ INSERT INTO perfis (id, nome, slug, descricao) VALUES
 (5, 'Estoquista', 'estoquista', 'Farmácia e compras'),
 (6, 'Auxiliar veterinário', 'auxiliar', 'Apoio em vacinação e exames'),
 (7, 'Banho e tosa', 'banho_tosa', 'Agenda de banho e tosa'),
-(8, 'Tutor', 'tutor', 'Acesso ao portal do tutor')
+(8, 'Tutor', 'tutor', 'Acesso ao portal do tutor'),
+(9, 'Proprietário PetCare', 'superadmin', 'Proprietário do software PetCare')
 ON DUPLICATE KEY UPDATE nome = VALUES(nome), slug = VALUES(slug);
 
 -- Usuário administrador (senha não é alterada em reimportações)
 INSERT INTO usuarios (nome, email, senha, perfil_id, ativo, trocar_senha) VALUES
 ('Administrador PetCare', 'admin@petcare.com.br', '$2y$12$1HyBt72SyQn6a7Rl50QUEey16Lh1SXrm56dGpxxEAK2/DeJhG.kq2', 1, 1, 1)
 ON DUPLICATE KEY UPDATE nome = VALUES(nome), trocar_senha = 1;
+
+INSERT INTO usuarios (nome, email, senha, perfil_id, ativo, trocar_senha) VALUES
+('Proprietário PetCare', 'proprietario@petcare.com.br', '$2y$12$snFpT8ODSv22AWMXuXqPse14sPt9VRw28/Fwmyi.QiW.iPsM9GO7K', 9, 1, 1)
+ON DUPLICATE KEY UPDATE perfil_id = 9, ativo = 1, trocar_senha = 1;
 
 -- Espécies e raças
 INSERT IGNORE INTO especies (id, nome) VALUES
@@ -839,11 +904,36 @@ INSERT IGNORE INTO configuracoes (chave, valor) VALUES
 ('email_integracao', '0'),
 ('whatsapp_integracao', '0'),
 ('retencao_dados_anos', '5'),
-('backup_automatico', '1');
+('backup_automatico', '1'),
+('licenca_dias_iniciais', '30'),
+('licenca_avisos', '10,5,3,1,0');
+
+INSERT INTO clinicas (id, codigo, nome, responsavel, cnpj, email, telefone, local_instalacao, ativo) VALUES
+(1, 'PC-LOCAL-001', 'PetCare', 'Administrador PetCare', '00.000.000/0001-00', 'contato@petcare.com.br', '(11) 4000-0000', 1, 1)
+ON DUPLICATE KEY UPDATE local_instalacao = 1, ativo = 1;
+
+INSERT IGNORE INTO licencas (id, clinica_id, codigo_licenca, modalidade, dias_contratados, status, licenca_permanente) VALUES
+(1, 1, 'LIC-PC-000001', '30_dias', 30, 'inativa', 0);
 
 -- Permissões do administrador: todos os módulos e ações
 INSERT IGNORE INTO permissoes (perfil_id, modulo, acao, created_at)
 SELECT 1, m.modulo, a.acao, NOW()
+FROM (
+    SELECT 'dashboard' AS modulo UNION ALL SELECT 'clientes' UNION ALL SELECT 'animais' UNION ALL
+    SELECT 'agenda' UNION ALL SELECT 'atendimentos' UNION ALL SELECT 'prontuarios' UNION ALL
+    SELECT 'vacinas' UNION ALL SELECT 'receitas' UNION ALL SELECT 'exames' UNION ALL
+    SELECT 'cirurgias' UNION ALL SELECT 'internacoes' UNION ALL SELECT 'farmacia' UNION ALL
+    SELECT 'financeiro' UNION ALL SELECT 'compras' UNION ALL SELECT 'banho_tosa' UNION ALL
+    SELECT 'usuarios' UNION ALL SELECT 'relatorios' UNION ALL SELECT 'notificacoes' UNION ALL
+    SELECT 'configuracoes' UNION ALL SELECT 'portal'
+) AS m
+CROSS JOIN (
+    SELECT 'view' AS acao UNION ALL SELECT 'create' UNION ALL SELECT 'edit' UNION ALL
+    SELECT 'delete' UNION ALL SELECT 'print' UNION ALL SELECT 'approve'
+) AS a;
+
+INSERT IGNORE INTO permissoes (perfil_id, modulo, acao, created_at)
+SELECT 9, m.modulo, a.acao, NOW()
 FROM (
     SELECT 'dashboard' AS modulo UNION ALL SELECT 'clientes' UNION ALL SELECT 'animais' UNION ALL
     SELECT 'agenda' UNION ALL SELECT 'atendimentos' UNION ALL SELECT 'prontuarios' UNION ALL

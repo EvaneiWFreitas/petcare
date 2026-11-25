@@ -16,13 +16,22 @@ foreach ($contasAbertas as $conta) {
 }
 ?>
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
-    <div>
-        <h1 class="h3 mb-1 fw-bold text-petcare"><?= e($cliente['nome'] ?? 'Cliente') ?></h1>
-        <p class="text-muted mb-0 small">
-            Código <?= e($cliente['codigo'] ?? '—') ?>
-            <?php if (!empty($cliente['cpf'])): ?> · CPF <?= e(mask_cpf($cliente['cpf'])) ?><?php endif; ?>
-            <?php if (!empty($cliente['telefone'])): ?> · <?= e($cliente['telefone']) ?><?php endif; ?>
-        </p>
+    <div class="d-flex align-items-center gap-3">
+        <?php if (!empty($cliente['foto'])): ?>
+            <img src="<?= e(upload_url($cliente['foto'])) ?>" alt="<?= e($cliente['nome'] ?? 'Cliente') ?>" class="rounded-circle object-fit-cover border shadow-sm" width="72" height="72">
+        <?php else: ?>
+            <span class="rounded-circle bg-petcare-soft d-flex align-items-center justify-content-center text-petcare fw-bold" style="width:72px;height:72px;">
+                <?= e(mb_strtoupper(mb_substr((string) ($cliente['nome'] ?? 'C'), 0, 1))) ?>
+            </span>
+        <?php endif; ?>
+        <div>
+            <h1 class="h3 mb-1 fw-bold text-petcare"><?= e($cliente['nome'] ?? 'Cliente') ?></h1>
+            <p class="text-muted mb-0 small">
+                Código <?= e($cliente['codigo'] ?? '—') ?>
+                <?php if (!empty($cliente['cpf'])): ?> · CPF <?= e(mask_cpf($cliente['cpf'])) ?><?php endif; ?>
+                <?php if (!empty($cliente['telefone'])): ?> · <?= e($cliente['telefone']) ?><?php endif; ?>
+            </p>
+        </div>
     </div>
     <div class="d-flex gap-2 flex-wrap">
         <a href="<?= e($novoPetUrl) ?>" class="btn btn-petcare shadow-sm"><i class="fa-solid fa-paw me-2"></i>Novo pet</a>

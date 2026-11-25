@@ -134,17 +134,100 @@ final class VacinacaoController extends Controller
         $this->redirect('vacinas.index');
     }
 
+    public function edit(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::get('id', 0);
+        $vacinacao = Database::fetch('SELECT * FROM vacinacoes WHERE id = :id LIMIT 1', ['id' => $id]);
+        if ($vacinacao === null) {
+            abort(404, 'Vacinação não encontrada.');
+        }
+
+        $values = [
+            'id' => $id,
+            'animal_id' => $vacinacao['animal_id'],
+            'cliente_id' => $vacinacao['cliente_id'],
+            'vacina_id' => $vacinacao['vacina_id'],
+            'veterinario_id' => $vacinacao['veterinario_id'] ?? '',
+            'lote' => $vacinacao['lote'] ?? '',
+            'data_aplicacao' => $vacinacao['data_aplicacao'],
+            'proxima_dose' => $vacinacao['proxima_dose'] ?? '',
+            'observacoes' => $vacinacao['observacoes'] ?? '',
+        ];
+
+        $this->renderForm('Editar vacinação', $this->withOld($values), [], 'vacinas.update', 'Salvar alterações');
+    }
+
+    public function update(?int $id = null): void
+    {
+        $id = $id ?? (int) Request::post('id', 0);
+        if ($id <= 0 || (int) Database::scalar('SELECT COUNT(*) FROM vacinacoes WHERE id = :id', ['id' => $id]) === 0) {
+            abort(404, 'Vacinação não encontrada.');
+        }
+
+        $data = $this->collect();
+        $errors = $this->validate($data);
+        if ($errors !== []) {
+            $data['id'] = $id;
+            set_old($data);
+            $this->renderForm(
+                'Editar vacinação',
+                $this->withOld($data),
+                $errors,
+                'vacinas.update',
+                'Salvar alterações'
+            );
+            return;
+        }
+
+        Database::update('vacinacoes', [
+            'animal_id' => (int) $data['animal_id'],
+            'cliente_id' => (int) $data['cliente_id'],
+            'vacina_id' => (int) $data['vacina_id'],
+            'veterinario_id' => $data['veterinario_id'] === '' ? null : (int) $data['veterinario_id'],
+            'lote' => $data['lote'] === '' ? null : $data['lote'],
+            'data_aplicacao' => $data['data_aplicacao'],
+            'proxima_dose' => $data['proxima_dose'] === '' ? null : $data['proxima_dose'],
+            'observacoes' => $data['observacoes'] === '' ? null : $data['observacoes'],
+        ], 'id = :id', ['id' => $id]);
+
+        log_action('editou_vacinacao', 'vacinas', $id, 'Vacinação atualizada.');
+        clear_old();
+        flash('success', 'Vacinação atualizada com sucesso.');
+        $this->redirect('vacinas.index');
+    }
+
     public function carteira(): void
     {
-        \view('vacinas/carteira', $this->carteiraData());
+        [$animalId, $clienteId] = $this->resolveCarteiraParams();
+        if ($animalId <= 0 && $clienteId <= 0) {
+            \view('vacinas/carteira', [
+                'title' => 'Carteira de vacinação',
+                'selecao' => true,
+                'animais' => $this->animaisParaCarteira(),
+            ]);
+            return;
+        }
+
+        \view('vacinas/carteira', $this->carteiraData($animalId, $clienteId));
     }
 
     public function printCarteira(): void
     {
-        \view('vacinas/carteira', $this->carteiraData(), 'print');
+        [$animalId, $clienteId] = $this->resolveCarteiraParams();
+        if ($animalId <= 0 && $clienteId <= 0) {
+            $this->redirect('vacinas.carteira');
+        }
+
+        \view('vacinas/carteira', $this->carteiraData($animalId, $clienteId), 'print');
     }
 
-    private function renderForm(string $title, array $values, array $errors): void
+    private function renderForm(
+        string $title,
+        array $values,
+        array $errors,
+        string $action = 'vacinas.store',
+        string $submitLabel = 'Registrar vacinação'
+    ): void
     {
         $animais = [];
         foreach (Database::fetchAll(
@@ -171,10 +254,11 @@ final class VacinacaoController extends Controller
             'title' => $title,
             'values' => $values,
             'errors' => $errors,
-            'action' => 'vacinas.store',
+            'action' => $action,
             'cancelRoute' => 'vacinas.index',
-            'submitLabel' => 'Registrar vacinação',
+            'submitLabel' => $submitLabel,
             'fields' => [
+                'id' => ['label' => 'ID', 'type' => 'text', 'col' => 'd-none'],
                 'animal_id' => ['label' => 'Animal', 'type' => 'select', 'rules' => 'required|integer', 'options' => $animais, 'col' => 'col-md-6'],
                 'cliente_id' => ['label' => 'Tutor', 'type' => 'select', 'rules' => 'required|integer', 'options' => $clientes, 'col' => 'col-md-6'],
                 'vacina_id' => ['label' => 'Vacina', 'type' => 'select', 'rules' => 'required|integer', 'options' => $vacinas, 'col' => 'col-md-6'],
@@ -203,9 +287,11 @@ final class VacinacaoController extends Controller
 
     private function indexActions(): array
     {
-        $actions = [
-            ['label' => 'Carteira', 'route' => 'vacinas.carteira', 'icon' => 'book-medical', 'class' => 'btn-outline-primary'],
-        ];
+        $actions = [];
+        if (can('vacinas', 'edit')) {
+            $actions[] = ['label' => 'Editar', 'route' => 'vacinas.edit', 'icon' => 'pen', 'class' => 'btn-outline-primary'];
+        }
+        $actions[] = ['label' => 'Carteira', 'route' => 'vacinas.carteira', 'icon' => 'book-medical', 'class' => 'btn-outline-primary'];
         if (can('vacinas', 'delete')) {
             $actions[] = ['label' => 'Excluir', 'route' => 'vacinas.destroy', 'icon' => 'trash', 'class' => 'btn-outline-danger', 'method' => 'post', 'confirm' => 'Excluir esta vacinação? Esta ação não pode ser desfeita.'];
         }
@@ -225,6 +311,7 @@ final class VacinacaoController extends Controller
         foreach (['data_aplicacao', 'proxima_dose'] as $field) {
             $data[$field] = trim((string) Request::post($field, ''));
         }
+        $data['id'] = (int) Request::post('id', 0);
         return $data;
     }
 
@@ -255,14 +342,38 @@ final class VacinacaoController extends Controller
         return $errors;
     }
 
-    private function carteiraData(): array
+    private function resolveCarteiraParams(): array
     {
         $animalId = (int) Request::get('animal_id', 0);
         $clienteId = (int) Request::get('cliente_id', 0);
-        if ($animalId <= 0 && $clienteId <= 0) {
-            abort(404, 'Informe um animal ou tutor para consultar a carteira.');
+        $id = (int) Request::get('id', 0);
+
+        if ($animalId <= 0 && $clienteId <= 0 && $id > 0) {
+            $vacinacao = Database::fetch(
+                'SELECT animal_id, cliente_id FROM vacinacoes WHERE id = :id LIMIT 1',
+                ['id' => $id]
+            );
+            if ($vacinacao !== null) {
+                $animalId = (int) $vacinacao['animal_id'];
+                $clienteId = (int) $vacinacao['cliente_id'];
+            }
         }
 
+        return [$animalId, $clienteId];
+    }
+
+    private function animaisParaCarteira(): array
+    {
+        return Database::fetchAll(
+            'SELECT a.id, a.nome, a.codigo, c.nome AS tutor
+             FROM animais a INNER JOIN clientes c ON c.id = a.cliente_id
+             WHERE a.ativo = 1
+             ORDER BY a.nome ASC'
+        );
+    }
+
+    private function carteiraData(int $animalId, int $clienteId): array
+    {
         $columns = 'a.id, a.nome, a.codigo, a.data_nascimento, c.id AS tutor_id, c.nome AS tutor_nome, c.telefone AS tutor_telefone, c.email AS tutor_email';
         if ($animalId > 0) {
             $animal = Database::fetch(

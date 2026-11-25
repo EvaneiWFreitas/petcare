@@ -7,6 +7,7 @@ namespace PetCare\Controllers;
 use PetCare\Core\Controller;
 use PetCare\Core\Database;
 use PetCare\Core\Request;
+use PetCare\Services\AtendimentoService;
 use PetCare\Validators\Validator;
 
 final class AgendaController extends Controller
@@ -462,9 +463,11 @@ final class AgendaController extends Controller
             return Database::insert('agendamentos', $payload);
         });
 
+        $atendimentoCriado = $payload['status'] === 'finalizado' && AtendimentoService::createFromAgendamento($savedId) !== null;
+
         log_action($id > 0 ? 'editou_agendamento' : 'criou_agendamento', 'agenda', $savedId, 'Agendamento ' . $payload['codigo'] . ' salvo.');
         clear_old();
-        flash('success', $id > 0 ? 'Agendamento atualizado com sucesso.' : 'Agendamento cadastrado com sucesso.');
+        flash('success', ($id > 0 ? 'Agendamento atualizado com sucesso.' : 'Agendamento cadastrado com sucesso.') . ($atendimentoCriado ? ' Atendimento finalizado registrado automaticamente.' : ''));
         $this->redirect('agenda.index');
     }
 

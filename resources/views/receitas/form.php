@@ -31,6 +31,7 @@ $itemFields = [
 
 <form method="post" action="<?= e(url($action)) ?>" novalidate>
     <?= csrf_field() ?>
+    <input type="hidden" name="id" value="<?= (int) ($values['id'] ?? 0) ?>">
     <div class="card border-0 shadow-petcare mb-4">
         <div class="card-header bg-white border-0 py-3"><h2 class="h6 mb-0 fw-bold text-petcare"><i class="fa-solid fa-file-prescription me-2"></i>Dados da receita</h2></div>
         <div class="card-body p-3 p-md-4">
@@ -148,6 +149,16 @@ $itemFields = [
         var html = template.innerHTML.replace(/__INDEX__/g, index);
         body.insertAdjacentHTML('beforeend', html);
         index++;
+    });
+
+    var animalClientes = <?= json_encode($options['animal_clientes'] ?? [], JSON_UNESCAPED_UNICODE) ?>;
+    var animal = document.getElementById('field_animal_id');
+    var cliente = document.getElementById('field_cliente_id');
+    animal.addEventListener('change', function () {
+        var clienteId = animalClientes[this.value];
+        if (clienteId) {
+            cliente.value = clienteId;
+        }
     });
 })();
 </script>

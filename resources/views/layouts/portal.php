@@ -2,6 +2,10 @@
 $title = $title ?? 'Portal do Tutor';
 $currentRoute = \PetCare\Core\Request::route();
 $flashes = flash_messages();
+$tutor = portal_user();
+$tutorName = trim((string) ($tutor['nome'] ?? '')) ?: 'Tutor';
+$tutorFirstName = explode(' ', $tutorName)[0] ?: 'Tutor';
+$tutorEmail = trim((string) ($tutor['email'] ?? ''));
 $links = [
     ['label' => 'Início', 'route' => 'portal.index', 'icon' => 'house'],
     ['label' => 'Animais', 'route' => 'portal.animais', 'icon' => 'paw'],
@@ -48,12 +52,47 @@ $links = [
                 <?php endforeach; ?>
             </nav>
 
-            <form method="post" action="<?= e(url('portal.logout')) ?>" class="m-0">
-                <?= csrf_field() ?>
-                <button type="submit" class="btn btn-outline-petcare btn-sm" title="Sair" aria-label="Sair">
-                    <i class="fa-solid fa-right-from-bracket me-1"></i><span class="d-none d-sm-inline">Sair</span>
-                </button>
-            </form>
+            <?php if ($tutor !== null): ?>
+                <div class="dropdown">
+                    <button type="button" class="portal-user d-flex align-items-center gap-2 border-0 bg-transparent p-0" id="portalUserMenu" data-bs-toggle="dropdown" aria-expanded="false" title="Menu do tutor">
+                        <?php if (!empty($tutor['foto'])): ?>
+                            <img src="<?= e(upload_url($tutor['foto'])) ?>" alt="<?= e($tutorName) ?>" class="user-avatar rounded-circle border shadow-sm">
+                        <?php else: ?>
+                            <span class="user-avatar-fallback rounded-circle bg-petcare-soft d-flex align-items-center justify-content-center text-petcare fw-bold"><?= e(mb_strtoupper(mb_substr($tutorFirstName, 0, 1))) ?></span>
+                        <?php endif; ?>
+                        <span class="min-w-0">
+                            <span class="fw-semibold d-block text-truncate"><?= e($tutorName) ?></span>
+                            <small class="text-muted d-none d-md-block text-truncate"><?= e($tutorEmail !== '' ? $tutorEmail : 'Tutor') ?></small>
+                        </span>
+                        <i class="fa-solid fa-chevron-down fa-xs ms-1"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="portalUserMenu">
+                        <li>
+                            <a class="dropdown-item" href="<?= e(url('portal.perfil')) ?>">
+                                <i class="fa-solid fa-user fa-fw me-2"></i>Meu perfil
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="<?= e(url('site.home')) ?>">
+                                <i class="fa-solid fa-arrow-left fa-fw me-2"></i>Voltar ao site
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form method="post" action="<?= e(url('portal.logout')) ?>" class="m-0">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="dropdown-item">
+                                    <i class="fa-solid fa-right-from-bracket fa-fw me-2"></i>Sair
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            <?php else: ?>
+                <a href="<?= e(url('site.home')) ?>" class="btn btn-outline-petcare btn-sm" title="Voltar ao site" aria-label="Voltar ao site">
+                    <i class="fa-solid fa-arrow-left me-1"></i><span class="d-none d-sm-inline">Voltar ao site</span>
+                </a>
+            <?php endif; ?>
         </div>
     </header>
 

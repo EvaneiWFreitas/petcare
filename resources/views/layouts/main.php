@@ -14,6 +14,7 @@ $menu = [
         ['label' => 'Atendimentos', 'route' => 'atendimentos.index', 'icon' => 'stethoscope', 'permission' => ['atendimentos', 'view']],
         ['label' => 'Prontuários', 'route' => 'prontuarios.index', 'icon' => 'file-medical', 'permission' => ['prontuarios', 'view']],
         ['label' => 'Vacinas', 'route' => 'vacinas.index', 'icon' => 'syringe', 'permission' => ['vacinas', 'view']],
+        ['label' => 'Carteira de vacinação', 'route' => 'vacinas.carteira', 'icon' => 'book-medical', 'permission' => ['vacinas', 'print']],
         ['label' => 'Receitas', 'route' => 'receitas.index', 'icon' => 'prescription-bottle', 'permission' => ['receitas', 'view']],
         ['label' => 'Exames', 'route' => 'exames.index', 'icon' => 'microscope', 'permission' => ['exames', 'view']],
         ['label' => 'Cirurgias', 'route' => 'cirurgias.index', 'icon' => 'scalpel', 'permission' => ['cirurgias', 'view']],
@@ -33,6 +34,19 @@ $menu = [
         ['label' => 'Configurações', 'route' => 'config.index', 'icon' => 'gear', 'permission' => ['configuracoes', 'view']],
     ],
 ];
+
+if (is_superadmin()) {
+    $menu = [
+        'LICENCIAMENTO E CONTROLE DO SISTEMA' => [
+            ['label' => 'Visão geral', 'route' => 'licenca.index', 'icon' => 'gauge-high'],
+            ['label' => 'Configuração do prazo', 'route' => 'licenca.configuracao', 'icon' => 'clock'],
+            ['label' => 'Prorrogação de licenças', 'route' => 'licenca.prorrogacao', 'icon' => 'calendar-plus'],
+            ['label' => 'Licenças ilimitadas', 'route' => 'licenca.ilimitadas', 'icon' => 'infinity'],
+            ['label' => 'Histórico de alterações', 'route' => 'licenca.historico', 'icon' => 'clock-rotate-left'],
+            ['label' => 'Situação dos sistemas licenciados', 'route' => 'licenca.situacao', 'icon' => 'signal'],
+        ],
+    ] + $menu;
+}
 
 $visibleMenu = [];
 foreach ($menu as $groupLabel => $items) {
@@ -59,6 +73,7 @@ $catalogRoutes = array_column($catalogItems, 'route');
 $catalogActive = in_array($currentRoute, $catalogRoutes, true);
 
 $flashes = flash_messages();
+$licenseAlert = is_superadmin() ? null : license_warning();
 $year = date('Y');
 ?>
 <!doctype html>
@@ -135,16 +150,40 @@ $year = date('Y');
                 <button type="button" class="btn btn-light border-0 shadow-sm d-lg-none" id="sidebarToggle" aria-label="Abrir menu" aria-controls="sidebar" aria-expanded="false">
                     <i class="fa-solid fa-bars"></i>
                 </button>
-                <div class="flex-grow-1 min-w-0 d-flex align-items-center gap-2">
-                    <?php if (!empty($currentUser['foto'])): ?>
-                        <img src="<?= e(upload_url($currentUser['foto'])) ?>" alt="<?= e($userName) ?>" class="user-avatar rounded-circle border shadow-sm">
-                    <?php else: ?>
-                        <span class="user-avatar-fallback rounded-circle bg-petcare-soft d-flex align-items-center justify-content-center text-petcare fw-bold"><?= e(mb_strtoupper(mb_substr($firstName, 0, 1))) ?></span>
-                    <?php endif; ?>
-                    <div class="min-w-0">
-                        <div class="small text-muted d-none d-sm-block">Bem-vindo de volta,</div>
-                        <div class="fw-semibold text-petcare text-truncate"><?= e($firstName) ?></div>
-                    </div>
+                <div class="dropdown flex-grow-1 min-w-0">
+                    <button type="button" class="user-menu-trigger d-flex align-items-center gap-2 border-0 bg-transparent p-0" id="adminUserMenu" data-bs-toggle="dropdown" aria-expanded="false" title="Menu do usuário">
+                        <?php if (!empty($currentUser['foto'])): ?>
+                            <img src="<?= e(upload_url($currentUser['foto'])) ?>" alt="<?= e($userName) ?>" class="user-avatar rounded-circle border shadow-sm">
+                        <?php else: ?>
+                            <span class="user-avatar-fallback rounded-circle bg-petcare-soft d-flex align-items-center justify-content-center text-petcare fw-bold"><?= e(mb_strtoupper(mb_substr($firstName, 0, 1))) ?></span>
+                        <?php endif; ?>
+                        <span class="min-w-0 text-start">
+                            <span class="small text-muted d-none d-sm-block">Bem-vindo de volta,</span>
+                            <span class="fw-semibold text-petcare text-truncate d-block"><?= e($firstName) ?></span>
+                        </span>
+                        <i class="fa-solid fa-chevron-down fa-xs ms-1"></i>
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="adminUserMenu">
+                        <li>
+                            <a class="dropdown-item" href="<?= e(url('auth.change-password')) ?>">
+                                <i class="fa-solid fa-key fa-fw me-2"></i>Trocar senha
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="<?= e(url('site.home')) ?>">
+                                <i class="fa-solid fa-arrow-left fa-fw me-2"></i>Voltar ao site
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form method="post" action="<?= e(url('auth.logout')) ?>" class="m-0">
+                                <?= csrf_field() ?>
+                                <button type="submit" class="dropdown-item">
+                                    <i class="fa-solid fa-right-from-bracket fa-fw me-2"></i>Sair
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
                 </div>
                 <?php if (!empty($currentUser['perfil_nome'])): ?>
                     <span class="badge rounded-pill bg-petcare-soft d-none d-md-inline"><?= e($currentUser['perfil_nome']) ?></span>
@@ -152,15 +191,6 @@ $year = date('Y');
                 <a href="<?= e(url('notificacoes.index')) ?>" class="btn btn-light border-0 shadow-sm icon-button" title="Notificações" aria-label="Notificações">
                     <i class="fa-regular fa-bell"></i>
                 </a>
-                <a href="<?= e(url('auth.change-password')) ?>" class="btn btn-light border-0 shadow-sm icon-button d-none d-sm-inline-flex" title="Trocar senha" aria-label="Trocar senha">
-                    <i class="fa-solid fa-key"></i>
-                </a>
-                <form method="post" action="<?= e(url('auth.logout')) ?>" class="m-0">
-                    <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-light border-0 shadow-sm icon-button" title="Sair" aria-label="Sair">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                    </button>
-                </form>
             </div>
         </header>
 
@@ -178,6 +208,15 @@ $year = date('Y');
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
                     </div>
                 <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($licenseAlert !== null): ?>
+            <div class="container-fluid mt-3">
+                <div class="alert alert-<?= e($licenseAlert['level']) ?> border-0 shadow-petcare license-warning mb-0" role="alert">
+                    <i class="fa-solid fa-clock fa-fw me-2"></i>
+                    <strong>Aviso de licença:</strong> <?= e($licenseAlert['message']) ?>
+                </div>
             </div>
         <?php endif; ?>
 

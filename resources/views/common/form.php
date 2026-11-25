@@ -74,7 +74,7 @@ $enctype = $enctype ?? null;
                         <?php elseif ($type === 'file'): ?>
                             <input type="file" name="<?= e($name) ?>" id="field_<?= e($name) ?>" class="form-control <?= $error ? 'is-invalid' : '' ?>" accept="<?= e($field['accept'] ?? 'image/*') ?>">
                             <?php if (!empty($value)): ?>
-                                <small class="text-muted d-block mt-1">Arquivo atual: <a href="<?= e(asset($value)) ?>" target="_blank" rel="noopener">visualizar</a></small>
+                                <small class="text-muted d-block mt-1">Arquivo atual: <a href="<?= e(upload_url($value)) ?>" target="_blank" rel="noopener">visualizar</a></small>
                             <?php endif; ?>
                         <?php else: ?>
                             <input type="<?= e($type === 'password' ? 'password' : ($type === 'number' ? 'number' : ($type === 'date' ? 'date' : ($type === 'time' ? 'time' : ($type === 'email' ? 'email' : 'text'))))) ?>"

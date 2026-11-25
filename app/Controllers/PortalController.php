@@ -15,7 +15,7 @@ final class PortalController extends Controller
     public function login(): void
     {
         if (Session::get('portal_cliente_id')) {
-            $this->redirect('portal.index');
+            $this->redirect(license_allowed() ? 'portal.index' : 'licenca.expirada');
         }
         $this->render('portal/login', [
             'title' => 'Acesso do tutor',
@@ -52,7 +52,7 @@ final class PortalController extends Controller
         Session::set('portal_cliente_id', (int) $cliente['id']);
         Session::set('portal_cliente_nome', (string) $cliente['nome']);
         clear_old();
-        $this->redirect('portal.index');
+        $this->redirect(license_allowed() ? 'portal.index' : 'licenca.expirada');
     }
 
     public function logout(): void

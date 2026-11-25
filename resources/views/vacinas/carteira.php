@@ -5,7 +5,33 @@ $tutor = $tutor ?? [];
 $vacinacoes = $vacinacoes ?? [];
 $title = $title ?? 'Carteira de vacinação';
 $animalId = (int) ($animal['id'] ?? 0);
+$selecao = $selecao ?? false;
+$animais = $animais ?? [];
 ?>
+
+<?php if ($selecao): ?>
+    <div class="card border-0 shadow-petcare">
+        <div class="card-header bg-white border-0 py-3">
+            <h2 class="h6 mb-0 fw-bold text-petcare"><i class="fa-solid fa-book-medical me-2"></i>Escolha o pet para consultar a carteira</h2>
+        </div>
+        <div class="card-body p-3 p-md-4">
+            <?php if ($animais === []): ?>
+                <p class="text-muted mb-0">Nenhum animal cadastrado.</p>
+            <?php else: ?>
+                <div class="row g-2">
+                    <?php foreach ($animais as $item): ?>
+                        <div class="col-md-6 col-lg-4">
+                            <a href="<?= e(url('vacinas.carteira', ['animal_id' => (int) $item['id']])) ?>" class="btn btn-outline-primary w-100 text-start shadow-sm">
+                                <i class="fa-solid fa-paw me-2"></i><?= e($item['nome']) ?><small class="d-block text-muted"><?= e($item['tutor'] ?? '') ?> · <?= e($item['codigo'] ?? '') ?></small>
+                            </a>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    <?php return; ?>
+<?php endif; ?>
 
 <div class="card border-0 shadow-petcare mb-4">
     <div class="card-body p-3 p-md-4 border-bottom border-4 border-petcare">

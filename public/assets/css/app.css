@@ -344,6 +344,11 @@ h1, h2, h3, h4, h5, h6 {
     z-index: 1020;
 }
 
+.user-menu-trigger {
+    cursor: pointer;
+    text-align: left;
+}
+
 .icon-button {
     width: 40px;
     height: 40px;
@@ -916,6 +921,8 @@ h1, h2, h3, h4, h5, h6 {
 .portal-user {
     font-size: 0.8125rem;
     color: #536b73;
+    cursor: pointer;
+    text-align: left;
 }
 
 .portal-content {
@@ -1079,4 +1086,49 @@ h1, h2, h3, h4, h5, h6 {
         color: inherit !important;
         text-decoration: none !important;
     }
+}
+
+.licenca-nav .nav-link {
+    border-radius: 10px;
+    color: #146c73;
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0.5rem 0.85rem;
+}
+
+.licenca-nav .nav-link.active {
+    background: linear-gradient(135deg, var(--pc-teal), var(--pc-green));
+    color: var(--pc-white);
+    box-shadow: 0 6px 16px rgba(32, 184, 176, 0.22);
+}
+
+.licenca-stat-icon {
+    align-items: center;
+    border-radius: 12px;
+    display: inline-flex;
+    height: 40px;
+    justify-content: center;
+    width: 40px;
+}
+
+.licenca-warning {
+    border-left: 4px solid var(--pc-teal);
+}
+
+.license-expired-card {
+    max-width: 560px;
+    text-align: center;
+}
+
+.license-expired-icon {
+    align-items: center;
+    background: #fff3f3;
+    border-radius: 50%;
+    color: #c62828;
+    display: inline-flex;
+    font-size: 2rem;
+    height: 84px;
+    justify-content: center;
+    margin-bottom: 1rem;
+    width: 84px;
 }

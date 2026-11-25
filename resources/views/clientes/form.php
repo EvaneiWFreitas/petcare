@@ -6,7 +6,7 @@ $errors = $errors ?? [];
 $action = $action ?? 'clientes.store';
 $cancelRoute = $cancelRoute ?? 'clientes.index';
 $submitLabel = $submitLabel ?? 'Salvar';
-$enctype = null;
+$enctype = $enctype ?? 'multipart/form-data';
 
 $ufs = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 
@@ -24,6 +24,7 @@ $fields += [
     'telefone' => ['label' => 'Telefone', 'type' => 'text', 'rules' => 'nullable|max:20', 'col' => 'col-md-4'],
     'whatsapp' => ['label' => 'WhatsApp', 'type' => 'text', 'rules' => 'nullable|max:20', 'col' => 'col-md-4'],
     'email' => ['label' => 'E-mail', 'type' => 'email', 'rules' => 'nullable|email|max:255', 'col' => 'col-md-4'],
+    'foto' => ['label' => 'Foto', 'type' => 'file', 'rules' => '', 'accept' => 'image/*', 'col' => 'col-md-4', 'help' => 'JPG, PNG, WebP ou GIF até 5 MB.'],
     'cep' => ['label' => 'CEP', 'type' => 'text', 'rules' => 'nullable|max:10', 'col' => 'col-md-3', 'placeholder' => '00000-000'],
     'endereco' => ['label' => 'Endereço', 'type' => 'text', 'rules' => 'nullable|max:255', 'col' => 'col-md-9'],
     'numero' => ['label' => 'Número', 'type' => 'text', 'rules' => 'nullable|max:20', 'col' => 'col-md-2'],

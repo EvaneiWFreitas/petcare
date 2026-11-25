@@ -21,7 +21,14 @@ $actionCell = static function (array $row) use ($actionDefs): string {
 };
 $columns = [
     'Código' => 'codigo',
-    'Nome' => 'nome',
+    'Nome' => static function (array $row): string {
+        $nome = e($row['nome'] ?? '—');
+        if (!empty($row['foto'])) {
+            return '<span class="d-flex align-items-center gap-2"><img src="' . e(upload_url($row['foto'])) . '" alt="" class="rounded-circle object-fit-cover border" width="36" height="36"><span>' . $nome . '</span></span>';
+        }
+        $initial = e(mb_strtoupper(mb_substr((string) ($row['nome'] ?? '?'), 0, 1)));
+        return '<span class="d-flex align-items-center gap-2"><span class="rounded-circle bg-petcare-soft d-flex align-items-center justify-content-center text-petcare fw-bold" style="width:36px;height:36px;">' . $initial . '</span><span>' . $nome . '</span></span>';
+    },
     'CPF' => static function (array $row): string {
         return e(mask_cpf($row['cpf'] ?? ''));
     },

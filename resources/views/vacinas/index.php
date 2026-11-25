@@ -2,22 +2,7 @@
 
 $alertas = $alertas ?? ['atrasadas' => 0, 'proximas' => 0];
 $rows = $rows ?? [];
-
-ob_start();
-require __DIR__ . '/../common/list.php';
-$html = (string) ob_get_clean();
-$needle = 'href="' . e(url('vacinas.carteira')) . '"';
-foreach ($rows as $row) {
-    $position = strpos($html, $needle);
-    if ($position === false) {
-        continue;
-    }
-    $animalId = (int) ($row['animal_id'] ?? 0);
-    $target = 'href="' . e(url('vacinas.carteira', ['animal_id' => $animalId])) . '"';
-    $html = substr_replace($html, $target, $position, strlen($needle));
-}
 ?>
-
 <div class="row g-3 mb-4">
     <div class="col-md-6">
         <div class="card border-0 shadow-sm h-100 border-start border-danger border-4">
@@ -37,4 +22,4 @@ foreach ($rows as $row) {
     </div>
 </div>
 
-<?= $html ?>
+<?php require __DIR__ . '/../common/list.php'; ?>

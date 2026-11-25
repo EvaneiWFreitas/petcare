@@ -14,7 +14,7 @@ final class AuthController extends Controller
     public function login(): void
     {
         if (auth()) {
-            redirect((int) (user()['trocar_senha'] ?? 0) === 1 ? 'auth.change-password' : 'dashboard.index');
+            redirect(login_destination());
         }
 
         $this->render('auth/login', ['title' => 'Acessar o PetCare'], 'auth');
@@ -78,7 +78,7 @@ final class AuthController extends Controller
         }
 
         flash('success', 'Bem-vindo(a), ' . explode(' ', (string) $record['nome'])[0] . '!');
-        redirect('dashboard.index');
+        redirect(login_destination($record));
     }
 
     public function changePassword(): void
@@ -123,7 +123,10 @@ final class AuthController extends Controller
         ], 'id = :id', ['id' => user()['id']]);
         log_action('alterou_senha', 'seguranca', (int) user()['id'], 'Senha atualizada pelo próprio usuário.');
         flash('success', 'Senha alterada com sucesso.');
-        redirect('dashboard.index');
+        redirect(login_destination([
+            'trocar_senha' => 0,
+            'perfil_slug' => user()['perfil_slug'] ?? '',
+        ]));
     }
 
     public function logout(): void

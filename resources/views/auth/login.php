@@ -66,6 +66,7 @@ foreach ($errors as $field => $error) {
     </a>
 
     <p class="auth-credentials mt-4 mb-0 text-center">
-        Acesso inicial: <strong>admin@petcare.com.br</strong> / <strong>PetCare@2026</strong>
+        Clínica: <strong>admin@petcare.com.br</strong> / <strong>PetCare@2026</strong><br>
+        Proprietário: <strong>proprietario@petcare.com.br</strong> / <strong>SuperAdmin@2026</strong>
     </p>
 </div>

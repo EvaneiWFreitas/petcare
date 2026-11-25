@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PetCare\Core\Database;
 use PetCare\Core\Request;
 use PetCare\Core\Session;
+use PetCare\Services\LicenseService;
 use PetCare\Services\UploadService;
 
 if (!function_exists('e')) {
@@ -253,6 +254,33 @@ if (!function_exists('user')) {
     }
 }
 
+if (!function_exists('portal_user')) {
+    function portal_user(): ?array
+    {
+        static $cached = null;
+        $id = (int) Session::get('portal_cliente_id', 0);
+        if ($id <= 0) {
+            return null;
+        }
+        if (is_array($cached) && (int) ($cached['id'] ?? 0) === $id) {
+            return $cached;
+        }
+
+        $row = Database::fetch(
+            'SELECT id, codigo, nome, email, telefone, foto FROM clientes WHERE id = :id AND ativo = 1 LIMIT 1',
+            ['id' => $id]
+        );
+        if ($row === null) {
+            Session::forget('portal_cliente_id');
+            Session::forget('portal_cliente_nome');
+            return null;
+        }
+
+        $cached = $row;
+        return $row;
+    }
+}
+
 if (!function_exists('auth')) {
     function auth(): bool
     {
@@ -267,10 +295,105 @@ if (!function_exists('can')) {
         if ($current === null) {
             return false;
         }
-        if ($current['perfil_slug'] === 'administrador') {
+        if (in_array($current['perfil_slug'] ?? '', ['administrador', 'superadmin'], true)) {
             return true;
         }
         return in_array($action, $current['permissoes'][$module] ?? [], true);
+    }
+}
+
+if (!function_exists('is_superadmin')) {
+    function is_superadmin(): bool
+    {
+        $current = user();
+        return $current !== null && ($current['perfil_slug'] ?? '') === 'superadmin';
+    }
+}
+
+if (!function_exists('license_status')) {
+    function license_status(): array
+    {
+        return LicenseService::status();
+    }
+}
+
+if (!function_exists('license_allowed')) {
+    function license_allowed(): bool
+    {
+        return LicenseService::allowed();
+    }
+}
+
+if (!function_exists('license_warning')) {
+    function license_warning(): ?array
+    {
+        return LicenseService::warning();
+    }
+}
+
+if (!function_exists('license_badge')) {
+    function license_badge(?string $status): string
+    {
+        $status = (string) $status;
+        $labels = [
+            'ativa' => 'Ativa', 'inativa' => 'Inativa', 'expirada' => 'Expirada',
+            'permanente' => 'Ilimitada', 'sem_licenca' => 'Sem licença',
+        ];
+        $classes = [
+            'ativa' => 'success', 'permanente' => 'primary',
+            'inativa' => 'secondary', 'sem_licenca' => 'secondary', 'expirada' => 'danger',
+        ];
+        $label = $labels[$status] ?? ucfirst(str_replace('_', ' ', $status));
+        $class = $classes[$status] ?? 'secondary';
+        return '<span class="badge bg-' . $class . ' rounded-pill">' . e($label) . '</span>';
+    }
+}
+
+if (!function_exists('license_route_allowed')) {
+    function license_route_allowed(string $routeName, array $route = []): bool
+    {
+        if (license_allowed()) {
+            return true;
+        }
+
+        if ($routeName === 'licenca.expirada') {
+            return true;
+        }
+
+        if (str_starts_with($routeName, 'site.') || in_array($routeName, ['home', 'profissional'], true)) {
+            return true;
+        }
+
+        if (in_array($routeName, ['auth.login', 'auth.authenticate', 'auth.logout'], true)) {
+            return true;
+        }
+
+        if (in_array($routeName, ['portal.login', 'portal.authenticate', 'portal.logout'], true)) {
+            return true;
+        }
+
+        if (is_superadmin() && (str_starts_with($routeName, 'licenca.') || in_array($routeName, ['auth.change-password', 'auth.update-password'], true))) {
+            return true;
+        }
+
+        return !empty($route['public']);
+    }
+}
+
+if (!function_exists('login_destination')) {
+    function login_destination(?array $record = null): string
+    {
+        $record = $record ?? user();
+        if ($record === null) {
+            return 'auth.login';
+        }
+        if ((int) ($record['trocar_senha'] ?? 0) === 1) {
+            return 'auth.change-password';
+        }
+        if (($record['perfil_slug'] ?? '') === 'superadmin') {
+            return 'licenca.index';
+        }
+        return license_allowed() ? 'dashboard.index' : 'licenca.expirada';
     }
 }
 

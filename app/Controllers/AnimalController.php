@@ -433,7 +433,7 @@ final class AnimalController extends Controller
     private function collect(int $id = 0): array
     {
         $data = [];
-        foreach (['codigo', 'nome', 'data_nascimento', 'cor', 'peso', 'porte', 'microchip', 'alergias', 'restricoes_alimentares', 'doencas_preexistentes', 'observacoes'] as $field) {
+        foreach (['codigo', 'nome', 'sexo', 'data_nascimento', 'cor', 'peso', 'porte', 'microchip', 'alergias', 'restricoes_alimentares', 'doencas_preexistentes', 'observacoes'] as $field) {
             $value = Request::post($field, '');
             $data[$field] = is_string($value) ? trim($value) : $value;
         }
