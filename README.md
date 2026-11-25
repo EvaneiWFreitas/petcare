@@ -190,7 +190,7 @@ Desenvolver uma plataforma de gestão veterinária capaz de simplificar os proce
 
 ## 👨‍💻 Desenvolvedor
 
-**Evanei William Nascimento de Freitas**
+**Evanei Freitas**
 
 Desenvolvedor de Sistemas | Bacharel em Engenharia de Software
 
