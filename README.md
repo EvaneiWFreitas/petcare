@@ -1,235 +1,209 @@
-# PetCare — Sistema de Gestão Veterinária
+# 🐾 PetCare — Sistema de Gestão Veterinária
 
-Sistema web completo para clínicas veterinárias, desenvolvido em **PHP 8.2+ puro**, sem frameworks PHP, com MySQL/MariaDB, Bootstrap 5, Chart.js e Font Awesome.
+**PetCare** é um sistema de gestão veterinária desenvolvido para facilitar a administração de clínicas veterinárias, pet shops e estabelecimentos especializados no atendimento e cuidado de animais de estimação.
 
-## Requisitos
+A plataforma tem como objetivo centralizar informações, organizar atendimentos, controlar agendamentos e facilitar a rotina administrativa e operacional de uma clínica veterinária.
 
-- XAMPP com Apache e MySQL/MariaDB ativos.
-- PHP 8.2 ou superior.
-- Extensões PHP: `pdo_mysql`, `mbstring`, `openssl`, `json`, `fileinfo`.
-- MySQL 5.7+/8.0 ou MariaDB 10.4+.
-- Navegador moderno.
+---
 
-## Instalação local (XAMPP)
+## 📌 Sobre o Projeto
 
-1. Copie a pasta `petcare` para `C:\xampp\htdocs\petcare`.
-2. Inicie **Apache** e **MySQL** no painel do XAMPP.
-3. Crie o banco (o SQL também cria o banco se ele não existir):
+O PetCare foi idealizado para oferecer uma solução completa, moderna e intuitiva para o gerenciamento de estabelecimentos veterinários.
 
-   ```powershell
-   & 'C:\xampp\mysql\bin\mysql.exe' -u root -e "CREATE DATABASE IF NOT EXISTS petcare_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-   ```
+Com uma interface organizada e recursos integrados, o sistema busca proporcionar mais eficiência no atendimento, segurança no armazenamento das informações e praticidade para os profissionais da área veterinária.
 
-4. Importe o SQL:
+## 🚀 Funcionalidades
 
-   ```powershell
-   & 'C:\xampp\mysql\bin\mysql.exe' -u root petcare_db < 'C:\xampp\htdocs\petcare\database\petcare_db.sql'
-   ```
+### 🏥 Painel Administrativo
+- Dashboard com visão geral do estabelecimento.
+- Indicadores de atendimentos e agendamentos.
+- Gerenciamento das informações da clínica.
+- Controle de usuários e permissões de acesso.
 
-5. Ajuste as credenciais em `C:\xampp\htdocs\petcare\.env`.
-   - Se não houver `.env`, copie `.env.example` para `.env`.
-6. Acesse:
+### 🐶 Gestão de Animais (Pets)
+- Cadastro completo de animais.
+- Identificação por nome, espécie, raça e idade.
+- Associação dos animais aos seus respectivos tutores.
+- Histórico de atendimentos veterinários.
 
-   ```text
-   http://localhost/petcare/public/index.php?r=auth.login
-   ```
+### 👥 Gestão de Tutores
+- Cadastro de clientes e responsáveis pelos animais.
+- Informações de contato.
+- Histórico de animais vinculados.
+- Consulta de registros dos tutores.
 
-   Também é possível usar `http://localhost/petcare/` se o Apache estiver com `mod_rewrite` ativo.
+### 📅 Agendamentos
+- Cadastro de consultas.
+- Organização da agenda veterinária.
+- Controle de datas e horários.
+- Acompanhamento da situação dos agendamentos.
 
-## Servidor embutido do PHP
+### 🩺 Atendimento Veterinário
+- Registro de consultas.
+- Histórico clínico dos animais.
+- Anotações veterinárias.
+- Registro de diagnósticos e tratamentos.
 
-Para abrir o site sem configurar um virtual host, execute na raiz do projeto:
+### 💊 Controle de Medicamentos
+- Cadastro de medicamentos.
+- Controle de estoque.
+- Registro de movimentações.
+- Acompanhamento de produtos disponíveis.
 
-```powershell
-cd C:\xampp\htdocs\petcare
-php -S localhost:8000
-```
+### 💰 Gestão Financeira
+- Registro de receitas e despesas.
+- Controle de pagamentos.
+- Acompanhamento financeiro.
+- Relatórios administrativos.
 
-Páginas disponíveis:
+### 🔐 Segurança e Controle de Acesso
+- Autenticação de usuários.
+- Controle de permissões.
+- Proteção de páginas administrativas.
+- Gerenciamento de sessões.
+
+### ⏳ Sistema de Licenciamento
+- Controle do período de utilização do sistema.
+- Configuração de prazo de funcionamento.
+- Possibilidade de prorrogação da licença pelo administrador responsável.
+- Bloqueio automático após o vencimento da licença, quando não houver renovação.
+
+---
+
+## 🛠️ Tecnologias Utilizadas
+
+O projeto foi planejado para utilizar tecnologias de desenvolvimento web:
+
+- **PHP:** processamento e lógica do sistema.
+- **MySQL:** gerenciamento do banco de dados.
+- **HTML5:** estrutura das páginas.
+- **CSS3:** estilização e responsividade.
+- **JavaScript:** interatividade da aplicação.
+- **Bootstrap:** construção de interfaces responsivas.
+
+*Observação: a relação acima representa a stack prevista. Ajuste conforme as tecnologias efetivamente utilizadas na versão do projeto.*
+
+---
+
+## 📂 Estrutura do Projeto
+
+A organização dos diretórios deve seguir a arquitetura implementada na aplicação.
+
+Exemplo de organização:
 
 ```text
-http://localhost:8000/                    Página principal
-http://localhost:8000/?r=site.profissional Página Profissional
-http://localhost:8000/profissional        Alias da página Profissional
-http://localhost:8000/?r=auth.login       Acesso ao sistema
-```
-
-O banco continua sendo o MySQL/MariaDB do XAMPP; apenas o servidor web é o embutido do PHP.
-
-## Credencial inicial
-
-| Campo | Valor |
-| --- | --- |
-| E-mail | `admin@petcare.com.br` |
-| Senha | `PetCare@2026` |
-
-No primeiro login o sistema exige a troca de senha. Após a troca, o acesso continua com o e-mail e a nova senha definida.
-
-> O SQL de instalação usa `INSERT ... ON DUPLICATE KEY UPDATE` para o administrador e **não substitui uma senha já alterada**. Para restaurar a senha inicial, execute:
-
-```powershell
-& 'C:\xampp\mysql\bin\mysql.exe' -u root -e "UPDATE petcare_db.usuarios SET senha='`$2y`$12`$1HyBt72SyQn6a7Rl50QUEey16Lh1SXrm56dGpxxEAK2/DeJhG.kq2', trocar_senha=1 WHERE id=1;"
-```
-
-## Portal do tutor
-
-O portal é separado do painel administrativo:
-
-```text
-http://localhost/petcare/public/index.php?r=portal.login
-```
-
-Login do tutor: **e-mail cadastrado + CPF cadastrado** (somente dígitos, com ou sem pontuação).
-
-## Estrutura
-
-```text
-petcare/
+PetCare/
+│
 ├── app/
-│   ├── Core/          # Router, Database, Session, Request, Controller, Autoloader
-│   ├── Controllers/   # Controllers dos módulos
-│   ├── Helpers/       # Funções globais
-│   ├── Middleware/    # Suporte a autenticação/permissões
-│   └── Validators/    # Validator e regras
-├── config/            # app, database, security, modules
+│   ├── Controllers/
+│   ├── Models/
+│   ├── Views/
+│   └── Helpers/
+│
+├── config/
+│
 ├── database/
-│   ├── petcare_db.sql       # SQL principal
-│   └── petcare_install.sql  # Cópia de segurança do SQL
+│
 ├── public/
-│   ├── index.php      # Front controller
-│   ├── assets/        # CSS/JS
-│   └── uploads/       # Arquivos enviados (precisa ser gravável)
-├── resources/views/   # Layouts, páginas e parciais
-├── routes/web.php     # Todas as rotas nomeadas
-├── storage/logs/      # Logs de erro (precisa ser gravável)
-├── .env               # Configuração ativa local
-└── .env.example       # Modelo de configuração
+│   ├── assets/
+│   │   ├── css/
+│   │   ├── js/
+│   │   └── images/
+│   └── index.php
+│
+├── uploads/
+│
+├── .env.example
+├── .gitignore
+└── README.md
 ```
 
-## Permissões de pastas
+---
 
-Em Windows normalmente não é necessário ajustar. Em Linux/servidor:
+## ⚙️ Instalação e Configuração
+
+### 1. Requisitos
+
+- PHP 8.0 ou superior (conforme compatibilidade do projeto).
+- MySQL ou MariaDB.
+- Servidor Apache.
+- XAMPP ou ambiente equivalente.
+- Navegador atualizado.
+
+### 2. Clonar o repositório
 
 ```bash
-chmod 755 -R public storage
-chmod 775 -R public/uploads storage/logs
+git clone URL_DO_REPOSITORIO
 ```
 
-## Configuração
+### 3. Acessar a pasta
 
-Edite `.env`:
-
-```dotenv
-APP_ENV=local
-APP_DEBUG=true
-APP_URL=http://localhost/petcare/public
-APP_KEY=984e981d64c51c75976ae873463a677d7b787fbaef5023a4ad15b88d294a1d33
-TIMEZONE=America/Sao_Paulo
-
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_NAME=petcare_db
-DB_USER=root
-DB_PASS=
-DB_CHARSET=utf8mb4
-
-SESSION_NAME=petcare_session
-CSRF_TTL=7200
-PASSWORD_COST=12
-UPLOAD_MAX_SIZE=5242880
+```bash
+cd PetCare
 ```
 
-Em produção: use `APP_ENV=production`, `APP_DEBUG=false`, troque `APP_KEY` e configure um usuário MySQL com senha.
+### 4. Configurar o banco de dados
 
-## Módulos implementados
+- Inicie o Apache e o MySQL no XAMPP.
+- Acesse o phpMyAdmin.
+- Crie o banco de dados do PetCare.
+- Importe o arquivo SQL disponibilizado no projeto.
+- Configure as credenciais de conexão.
 
-- Dashboard com KPIs, gráficos de receitas/despesas e próximos agendamentos.
-- Clientes/tutores e animais com ficha individual.
-- Veterinários e catálogos: espécies, raças, especialidades, vacinas, categorias, fornecedores e serviços.
-- Agenda com bloqueio de conflito de horário por veterinário.
-- Atendimentos, prontuários com auditoria, vacinação e carteirinha.
-- Receitas com impressão, exames, cirurgias e internações.
-- Farmácia/estoque com movimentações, compras e recebimento.
-- Financeiro: contas a receber/pagar, pagamentos e fluxo de caixa.
-- Banho e tosa.
-- Usuários, perfis e permissões por módulo/ação.
-- Relatórios em tela, CSV e impressão.
-- Notificações, configurações da clínica e backup.
-- Portal do tutor com animais, agendamentos e histórico.
+### 5. Configurar o ambiente
 
-## Rotas
+Configure o arquivo de ambiente ou conexão com o banco de dados, conforme a arquitetura utilizada.
 
-Todas as rotas passam por `public/index.php` usando `?r=nome.da.rota`.
+### 6. Executar o sistema
 
-Exemplos:
+Se estiver utilizando XAMPP, coloque o projeto na pasta:
 
 ```text
-?r=dashboard.index
-?r=clientes.index
-?r=agenda.create
-?r=financeiro.receber
-?r=relatorios.generate&tipo=clientes&inicio=2026-11-01&fim=2026-11-30&formato=csv
-?r=portal.login
+C:\xampp\htdocs\PetCare
 ```
 
-O arquivo `routes/web.php` define método HTTP, controller, autenticação e permissão de cada rota.
+Acesse pelo navegador:
 
-## Segurança
-
-- CSRF em todos os formulários, com validação no POST.
-- Sessão regenerada no login e no portal do tutor.
-- Senhas com `password_hash()`/`password_verify()` e custo configurável.
-- Bloqueio temporário após tentativas falhas de login.
-- Consultas via PDO com prepared statements.
-- Upload validado por extensão, MIME e tamanho.
-- `.env` protegido pelo `.htaccess` na raiz.
-- Permissões verificadas por `perfil_id + módulo + ação` na tabela `permissoes`.
-
-## Backup e restauração
-
-Gerar dump pelo XAMPP:
-
-```powershell
-& 'C:\xampp\mysql\bin\mysqldump.exe' -u root petcare_db > 'C:\xampp\htdocs\petcare\storage\backup-petcare.sql'
+```text
+http://localhost/PetCare
 ```
 
-Restaurar:
+---
 
-```powershell
-& 'C:\xampp\mysql\bin\mysql.exe' -u root petcare_db < 'C:\xampp\htdocs\petcare\storage\backup-petcare.sql'
-```
+## 🔒 Segurança
 
-Também há backup pelo painel em `?r=config.index`.
+O PetCare deve adotar boas práticas de desenvolvimento, incluindo:
 
-## Verificação rápida
+- Senhas armazenadas com hash seguro.
+- Consultas parametrizadas para evitar SQL Injection.
+- Validação de dados enviados pelos usuários.
+- Proteção contra CSRF.
+- Controle de acesso por perfil.
+- Proteção de informações administrativas.
+- Configuração adequada das permissões de arquivos e diretórios.
 
-```powershell
-php -v
-php -l 'C:\xampp\htdocs\petcare\public\index.php'
-```
+---
 
-Para validar todos os arquivos PHP:
+## 🎯 Objetivo do Projeto
 
-```powershell
-Get-ChildItem -Path 'C:\xampp\htdocs\petcare' -Recurse -Filter *.php | Where-Object { $_.FullName -notmatch '\\vendor\\' } | ForEach-Object { php -l $_.FullName }
-```
+Desenvolver uma plataforma de gestão veterinária capaz de simplificar os processos administrativos e operacionais de clínicas veterinárias, proporcionando organização, produtividade e melhor gerenciamento das informações.
 
-## Erros comuns
+## 👨‍💻 Desenvolvedor
 
-- **Página em branco:** confirme PHP 8.2+ e veja `storage\logs\errors.log`.
-- **Erro de conexão:** confira `DB_HOST`, `DB_NAME`, `DB_USER` e `DB_PASS` no `.env`.
-- **404 em rotas:** use `?r=auth.login` ou habilite `mod_rewrite` no Apache.
-- **CSRF inválido:** recarregue a página e reenvie o formulário; sessões expiram após o tempo configurado.
-- **SQL desapareceu:** alguns antivírus sinalizam arquivos `.sql`; recopie `database\petcare_install.sql` para `database\petcare_db.sql`.
-- **Erro ao enviar arquivo:** verifique `UPLOAD_MAX_SIZE`, `upload_max_filesize` e `post_max_size` no PHP.
-- **Acesso negado em módulo:** o perfil do usuário não possui a permissão necessária; ajuste em `?r=usuarios.permissions`.
+**Evanei William Nascimento de Freitas**
 
-## Publicação em servidor
+Desenvolvedor de Sistemas | Bacharel em Engenharia de Software
 
-1. Envie todos os arquivos, exceto `.env`, `storage\logs\*` e `public\uploads\*`.
-2. Crie o banco e importe `database\petcare_db.sql`.
-3. Crie `.env` no servidor com `APP_ENV=production`, `APP_DEBUG=false` e credenciais reais.
-4. Aponte o DocumentRoot para `public/` ou mantenha o front controller em `public/index.php`.
-5. Conceda escrita em `public/uploads/` e `storage/logs/`.
-6. Troque a senha inicial do administrador e desative usuários não utilizados.
-7. Configure HTTPS e backups periódicos do banco e dos uploads.
+Projeto desenvolvido com foco em aprendizado, aplicação de conhecimentos em Engenharia de Software e desenvolvimento de soluções tecnológicas para necessidades reais.
+
+---
+
+## 📄 Licença
+
+Este projeto possui licença a definir pelo proprietário do repositório.
+
+---
+
+<p align="center">
+  🐾 <strong>PetCare — Tecnologia, cuidado e carinho pela vida animal!</strong>
+</p>
