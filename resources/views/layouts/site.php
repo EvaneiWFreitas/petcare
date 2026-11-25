@@ -21,28 +21,33 @@ $active = static function (string ...$routes) use ($currentRoute): string {
     <link href="<?= e(asset('css/site.css')) ?>" rel="stylesheet">
 </head>
 <body class="site-body">
-<nav class="navbar navbar-expand-lg navbar-light bg-white site-nav shadow-sm sticky-top">
-    <div class="container">
-        <a class="navbar-brand fw-bold" href="<?= e(url('site.home')) ?>">
-            <?php if ($siteLogo !== ''): ?><img src="<?= e(upload_url($siteLogo)) ?>" alt="PetCare" class="brand-logo-img brand-logo-img-sm me-2"><?php else: ?><i class="fa-solid fa-paw text-petcare me-2"></i><?php endif; ?>PetCare
+<nav class="navbar navbar-expand-lg site-nav sticky-top">
+    <div class="container py-1">
+        <a class="navbar-brand d-flex align-items-center gap-2" href="<?= e(url('site.home')) ?>">
+            <?php if ($siteLogo !== ''): ?>
+                <img src="<?= e(upload_url($siteLogo)) ?>" alt="PetCare" class="brand-logo-img brand-logo-img-sm">
+            <?php else: ?>
+                <span class="brand-mark"><i class="fa-solid fa-paw"></i></span>
+            <?php endif; ?>
+            <span>PetCare</span>
         </a>
-        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#siteNav" aria-controls="siteNav" aria-expanded="false" aria-label="Alternar navegação">
+        <button class="navbar-toggler border-0 shadow-none px-2" type="button" data-bs-toggle="collapse" data-bs-target="#siteNav" aria-controls="siteNav" aria-expanded="false" aria-label="Alternar navegação">
             <span class="navbar-toggler-icon"></span>
         </button>
         <div class="collapse navbar-collapse" id="siteNav">
-            <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-3">
+            <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-4 mt-3 mt-lg-0">
                 <li class="nav-item">
                     <a class="nav-link<?= $active('site.home', 'home') ?>" href="<?= e(url('site.home')) ?>">Início</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link<?= $active('site.profissional', 'profissional') ?>" href="<?= e(url('site.profissional')) ?>">Profissional</a>
+                    <a class="nav-link<?= $active('site.profissional', 'profissional') ?>" href="<?= e(url('site.profissional')) ?>">Profissionais</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="<?= e(url('portal.login')) ?>">Portal do tutor</a>
                 </li>
-                <li class="nav-item mt-2 mt-lg-0">
-                    <a class="btn btn-petcare btn-sm px-3" href="<?= e(url('auth.login')) ?>">
-                        <i class="fa-solid fa-right-to-bracket me-1"></i>Acessar sistema
+                <li class="nav-item mt-3 mt-lg-0 ms-lg-2">
+                    <a class="btn btn-petcare" href="<?= e(url('auth.login')) ?>">
+                        Acessar sistema
                     </a>
                 </li>
             </ul>
@@ -54,12 +59,38 @@ $active = static function (string ...$routes) use ($currentRoute): string {
     <?= $content ?>
 </main>
 
-<footer class="site-footer py-4 mt-5">
+<footer class="site-footer pt-5 pb-4">
     <div class="container">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
-            <span class="fw-semibold"><?php if ($siteLogo !== ''): ?><img src="<?= e(upload_url($siteLogo)) ?>" alt="PetCare" class="brand-logo-img brand-logo-img-sm me-2"><?php else: ?><i class="fa-solid fa-paw text-petcare me-2"></i><?php endif; ?>PetCare</span>
-            <span class="text-secondary small">Cuidando de quem faz parte da sua família.</span>
-            <span class="text-secondary small">&copy; <?= date('Y') ?> PetCare</span>
+        <div class="row g-4 pb-4 mb-4 border-bottom">
+            <div class="col-lg-5">
+                <a class="site-footer-brand d-inline-flex align-items-center gap-2 mb-3" href="<?= e(url('site.home')) ?>">
+                    <?php if ($siteLogo !== ''): ?>
+                        <img src="<?= e(upload_url($siteLogo)) ?>" alt="PetCare" class="brand-logo-img brand-logo-img-sm">
+                    <?php else: ?>
+                        <span class="brand-mark"><i class="fa-solid fa-paw"></i></span>
+                    <?php endif; ?>
+                    <span>PetCare</span>
+                </a>
+                <p class="text-secondary mb-0 pe-lg-5">Plataforma completa para gestão veterinária. Mais organização para a clínica, mais cuidado para os pets.</p>
+            </div>
+            <div class="col-6 col-lg-3 offset-lg-1">
+                <div class="fw-semibold text-dark mb-3 small text-uppercase" style="letter-spacing:.06em;">Navegação</div>
+                <div class="d-flex flex-column gap-2 site-footer-links">
+                    <a href="<?= e(url('site.home')) ?>">Início</a>
+                    <a href="<?= e(url('site.profissional')) ?>">Profissionais</a>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="fw-semibold text-dark mb-3 small text-uppercase" style="letter-spacing:.06em;">Acesso</div>
+                <div class="d-flex flex-column gap-2 site-footer-links">
+                    <a href="<?= e(url('auth.login')) ?>">Sistema</a>
+                    <a href="<?= e(url('portal.login')) ?>">Portal do tutor</a>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex flex-column flex-md-row justify-content-between gap-2 site-footer-bottom">
+            <span>&copy; <?= date('Y') ?> PetCare. Todos os direitos reservados.</span>
+            <span>Cuidando de quem faz parte da sua família.</span>
         </div>
     </div>
 </footer>

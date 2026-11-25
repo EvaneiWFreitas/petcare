@@ -65,6 +65,8 @@ $catalogItems = [
     ['label' => 'Categorias', 'route' => 'crud.categorias.index', 'icon' => 'tags', 'permission' => ['configuracoes', 'view']],
     ['label' => 'Fornecedores', 'route' => 'crud.fornecedores.index', 'icon' => 'truck', 'permission' => ['compras', 'view']],
     ['label' => 'Serviços', 'route' => 'crud.servicos.index', 'icon' => 'soap', 'permission' => ['banho_tosa', 'view']],
+    ['label' => 'Serviços do site', 'route' => 'crud.site-servicos.index', 'icon' => 'globe', 'permission' => ['configuracoes', 'view']],
+    ['label' => 'Carrossel da p?gina inicial', 'route' => 'crud.site-carrossel.index', 'icon' => 'images', 'permission' => ['configuracoes', 'view']],
 ];
 $catalogItems = array_values(array_filter($catalogItems, static function (array $item): bool {
     return can($item['permission'][0], $item['permission'][1]);

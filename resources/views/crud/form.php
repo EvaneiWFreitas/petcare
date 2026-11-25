@@ -9,6 +9,6 @@ $errors = $errors ?? [];
 $action = $action ?? '';
 $cancelRoute = $cancelRoute ?? ((string) ($config['route'] ?? 'crud.' . $slug)) . '.index';
 $submitLabel = $submitLabel ?? 'Salvar';
-$enctype = null;
+$enctype = $enctype ?? null;
 
 require __DIR__ . '/../common/form.php';

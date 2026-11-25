@@ -199,6 +199,8 @@ $crudModules = [
     'categorias' => ['controller' => 'CrudController', 'module' => 'configuracoes', 'label' => 'Categorias'],
     'fornecedores' => ['controller' => 'CrudController', 'module' => 'compras', 'label' => 'Fornecedores'],
     'servicos' => ['controller' => 'CrudController', 'module' => 'banho_tosa', 'label' => 'Serviços'],
+    'site-servicos' => ['controller' => 'CrudController', 'module' => 'configuracoes', 'label' => 'Serviços do site'],
+    'site-carrossel' => ['controller' => 'CrudController', 'module' => 'configuracoes', 'label' => 'Carrossel da p?gina inicial'],
 ];
 
 foreach ($crudModules as $slug => $config) {

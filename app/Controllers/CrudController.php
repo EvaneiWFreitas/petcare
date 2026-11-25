@@ -108,6 +108,7 @@ final class CrudController extends Controller
             'action' => $config['route'] . '.store',
             'cancelRoute' => $config['route'] . '.index',
             'submitLabel' => 'Cadastrar',
+            'enctype' => $this->hasFileField($fields) ? 'multipart/form-data' : null,
         ]);
     }
 
@@ -116,7 +117,12 @@ final class CrudController extends Controller
         $slug = $this->slug();
         $config = $this->config($slug);
         $fields = $config['fields'] ?? [];
-        $data = $this->collect($fields, true);
+        try {
+            $data = $this->collect($fields, true);
+        } catch (\Throwable $e) {
+            flash('error', $e->getMessage());
+            $this->redirect($config['route'] . '.create');
+        }
         $errors = (new Validator($this->rules($fields)))->validate($data + ['id' => 0]);
 
         if ($errors !== []) {
@@ -130,6 +136,7 @@ final class CrudController extends Controller
                 'action' => $config['route'] . '.store',
                 'cancelRoute' => $config['route'] . '.index',
                 'submitLabel' => 'Cadastrar',
+                'enctype' => $this->hasFileField($fields) ? 'multipart/form-data' : null,
             ]);
             return;
         }
@@ -165,6 +172,7 @@ final class CrudController extends Controller
             'action' => $config['route'] . '.update',
             'cancelRoute' => $config['route'] . '.index',
             'submitLabel' => 'Salvar alterações',
+            'enctype' => $this->hasFileField($fields) ? 'multipart/form-data' : null,
         ]);
     }
 
@@ -178,7 +186,13 @@ final class CrudController extends Controller
         }
 
         $fields = $config['fields'] ?? [];
-        $data = $this->collect($fields, false);
+        $current = $this->find((string) $config['table'], $id) ?? [];
+        try {
+            $data = $this->collect($fields, false, $current);
+        } catch (\Throwable $e) {
+            flash('error', $e->getMessage());
+            $this->redirect($config['route'] . '.edit', ['id' => $id]);
+        }
         $errors = (new Validator($this->rules($fields)))->validate($data + ['id' => $id]);
 
         if ($errors !== []) {
@@ -282,12 +296,32 @@ final class CrudController extends Controller
         return $rules;
     }
 
-    private function collect(array $fields, bool $creating): array
+    private function hasFileField(array $fields): bool
+    {
+        foreach ($fields as $field) {
+            if (($field['type'] ?? 'text') === 'file') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function collect(array $fields, bool $creating, array $current = []): array
     {
         $data = [];
         foreach ($fields as $name => $field) {
-            if (($field['type'] ?? 'text') === 'checkbox') {
+            $type = (string) ($field['type'] ?? 'text');
+            if ($type === 'checkbox') {
                 $data[$name] = Request::has($name) ? ((int) Request::post($name, 0) === 1 ? 1 : 0) : ($creating ? 1 : 0);
+                continue;
+            }
+            if ($type === 'file') {
+                $file = Request::file($name);
+                if ($file !== null && (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+                    $data[$name] = \PetCare\Services\UploadService::handle($file, 'site', 'image');
+                } elseif (!$creating) {
+                    $data[$name] = $current[$name] ?? null;
+                }
                 continue;
             }
 

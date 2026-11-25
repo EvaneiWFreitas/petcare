@@ -5,25 +5,32 @@ declare(strict_types=1);
 namespace PetCare\Controllers;
 
 use PetCare\Core\Controller;
+use PetCare\Core\Database;
 
 final class SiteController extends Controller
 {
-    public function home(): void
+        public function home(): void
     {
+        $servicos = Database::fetchAll(
+            'SELECT id, nome, descricao, preco, duracao_minutos FROM servicos ORDER BY nome ASC, id ASC'
+        );
+        $slides = [];
+        try {
+            $slides = Database::fetchAll(
+                'SELECT id, titulo, subtitulo, descricao, badge, imagem, botao_texto, botao_link, ordem FROM site_carrossel WHERE ativo = 1 ORDER BY ordem ASC, id ASC'
+            );
+        } catch (\Throwable $e) {
+            $slides = [];
+        }
+
         $this->render('site/home', [
-            'title' => 'PetCare | Gestão veterinária',
-            'features' => [
-                ['icon' => 'calendar-days', 'title' => 'Agenda inteligente', 'text' => 'Agendamentos com bloqueio automático de horários conflitantes por veterinário.'],
-                ['icon' => 'file-medical', 'title' => 'Prontuários completos', 'text' => 'Histórico clínico, evoluções e auditoria de cada alteração em um só lugar.'],
-                ['icon' => 'syringe', 'title' => 'Vacinação e carteirinha', 'text' => 'Controle de doses, lotes e próximas aplicações com carteirinha digital.'],
-                ['icon' => 'boxes-stacked', 'title' => 'Farmácia e estoque', 'text' => 'Produtos, movimentações, compras e recebimento com níveis mínimos.'],
-                ['icon' => 'chart-line', 'title' => 'Financeiro integrado', 'text' => 'Contas a receber, contas a pagar, pagamentos e fluxo de caixa em tempo real.'],
-                ['icon' => 'chart-pie', 'title' => 'Relatórios prontos', 'text' => 'Indicadores exportáveis em tela, CSV e impressão para apoiar decisões.'],
-            ],
+            'title' => 'PetCare | Gest?o veterin?ria',
+            'servicos' => $servicos,
+            'slides' => $slides,
             'steps' => [
-                ['number' => '01', 'title' => 'Cadastre a equipe', 'text' => 'Configure perfis, permissões e os profissionais da clínica.'],
+                ['number' => '01', 'title' => 'Cadastre a equipe', 'text' => 'Configure perfis, permiss?es e os profissionais da cl?nica.'],
                 ['number' => '02', 'title' => 'Organize a rotina', 'text' => 'Tutores, animais, agenda e atendimentos conectados desde o primeiro dia.'],
-                ['number' => '03', 'title' => 'Acompanhe os resultados', 'text' => 'Painel com indicadores clínicos, operacionais e financeiros.'],
+                ['number' => '03', 'title' => 'Acompanhe os resultados', 'text' => 'Painel com indicadores cl?nicos, operacionais e financeiros.'],
             ],
         ], 'site');
     }

@@ -37,6 +37,7 @@ DROP TABLE IF EXISTS racas;
 DROP TABLE IF EXISTS especies;
 DROP TABLE IF EXISTS produtos;
 DROP TABLE IF EXISTS servicos;
+DROP TABLE IF EXISTS site_servicos;
 DROP TABLE IF EXISTS vacinas;
 DROP TABLE IF EXISTS categorias;
 DROP TABLE IF EXISTS fornecedores;
@@ -603,6 +604,19 @@ CREATE TABLE servicos (
     UNIQUE KEY uq_servicos_nome (nome)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE site_servicos (
+    id INT NOT NULL AUTO_INCREMENT,
+    titulo VARCHAR(120) NOT NULL,
+    descricao TEXT NULL,
+    icone VARCHAR(80) NOT NULL DEFAULT 'circle-check',
+    ordem INT NOT NULL DEFAULT 0,
+    ativo TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_site_servicos_titulo (titulo),
+    KEY idx_site_servicos_ativo_ordem (ativo, ordem)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE banho_tosa (
     id INT NOT NULL AUTO_INCREMENT,
     codigo VARCHAR(50) NOT NULL,
@@ -887,6 +901,38 @@ INSERT IGNORE INTO servicos (id, nome, descricao, preco, duracao_minutos) VALUES
 (3, 'Corte de unhas', 'Corte e lixamento de unhas', 0.00, 20),
 (4, 'Higienização', 'Limpeza de ouvidos e glândulas', 0.00, 30),
 (5, 'Hidratação', 'Hidratação de pelagem', 0.00, 40);
+
+-- Serviços exibidos na página inicial
+INSERT IGNORE INTO site_servicos (id, titulo, descricao, icone, ordem, ativo) VALUES
+(1, 'Agenda inteligente', 'Agendamentos com bloqueio automático de horários conflitantes por veterinário.', 'calendar-days', 1, 1),
+(2, 'Prontuários completos', 'Histórico clínico, evoluções e auditoria de cada alteração em um só lugar.', 'file-medical', 2, 1),
+(3, 'Vacinação e carteirinha', 'Controle de doses, lotes e próximas aplicações com carteirinha digital.', 'syringe', 3, 1),
+(4, 'Farmácia e estoque', 'Produtos, movimentações, compras e recebimento com níveis mínimos.', 'boxes-stacked', 4, 1),
+(5, 'Financeiro integrado', 'Contas a receber, contas a pagar, pagamentos e fluxo de caixa em tempo real.', 'chart-line', 5, 1),
+(6, 'Relatórios prontos', 'Indicadores exportáveis em tela, CSV e impressão para apoiar decisões.', 'chart-pie', 6, 1);
+
+DROP TABLE IF EXISTS site_carrossel;
+CREATE TABLE site_carrossel (
+    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    titulo VARCHAR(120) NOT NULL,
+    subtitulo VARCHAR(160) DEFAULT NULL,
+    descricao TEXT DEFAULT NULL,
+    badge VARCHAR(60) DEFAULT NULL,
+    imagem VARCHAR(255) DEFAULT NULL,
+    botao_texto VARCHAR(60) DEFAULT NULL,
+    botao_link VARCHAR(255) DEFAULT NULL,
+    ordem INT NOT NULL DEFAULT 0,
+    ativo TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_site_carrossel_ativo_ordem (ativo, ordem)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO site_carrossel (id, titulo, subtitulo, descricao, badge, imagem, botao_texto, botao_link, ordem, ativo) VALUES
+(1, 'Cuidado completo para o seu pet', 'Atendimento com carinho e profissionalismo', 'Equipe preparada para oferecer bem-estar, sa?de e confian?a em cada atendimento.', 'Bem-vindo ao PetCare', NULL, 'Conhecer servi?os', '#servicos', 1, 1),
+(2, 'Gest?o moderna para sua cl?nica', 'Organiza??o que faz diferen?a', 'Agenda, prontu?rios e financeiro integrados em uma plataforma simples e eficiente.', 'Tecnologia veterin?ria', NULL, 'Acessar sistema', '/auth/login', 2, 1);
+
 
 -- Configurações
 INSERT IGNORE INTO configuracoes (chave, valor) VALUES
